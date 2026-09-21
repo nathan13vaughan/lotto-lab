@@ -31,9 +31,15 @@ def connect(path: Path = DB_PATH) -> sqlite3.Connection:
 
 
 def upsert(con: sqlite3.Connection, game: str, rows: list[dict], source: str) -> int:
+    # Only rewrite a stored draw when its numbers differ, so re-fetching the same
+    # draw from another source doesn't churn the CSVs kept in git.
     con.executemany(
-        "INSERT OR REPLACE INTO draws VALUES (?,?,?,?,?,?,?)",
-        [(game, r["draw_no"], r["date"], json.dumps(sorted(r["main"])), json.dumps(r.get("supp", [])),
+        "INSERT INTO draws VALUES (?,?,?,?,?,?,?) ON CONFLICT(game, draw_no) DO UPDATE SET "
+        "draw_date=excluded.draw_date, main=excluded.main, supp=excluded.supp, "
+        "powerball=excluded.powerball, source=excluded.source "
+        "WHERE draws.main != excluded.main OR draws.supp != excluded.supp "
+        "OR draws.powerball != excluded.powerball OR draws.draw_date != excluded.draw_date",
+        [(game, r["draw_no"], r["date"], json.dumps(sorted(r["main"])), json.dumps(sorted(r.get("supp", []))),
           json.dumps(r.get("powerball", [])), source) for r in rows],
     )
     con.commit()

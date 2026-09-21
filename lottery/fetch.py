@@ -12,11 +12,16 @@ Sources
   archive   australia.national-lottery.com yearly archive pages. Used for the draws
             the official API lacks (TattsLotto 1986-1996, Set for Life 2015-2020)
             and as a fallback if the official API refuses us.
+  lotterywest  api.lotterywest.wa.gov.au (WA's official lottery). Only the last 10
+            draws per game, but it works from anywhere (thelott.com blocks
+            non-Australian IPs such as GitHub Actions), and it includes prize
+            amounts, jackpots and the next draw. Tried first for routine updates.
 """
 from __future__ import annotations
 
 import argparse
 import html
+import json
 import re
 import sys
 import time
@@ -28,6 +33,9 @@ from . import db
 
 API = "https://data.api.thelott.com/sales/vmax/web/data/lotto/results/search/daterange"
 ARCHIVE = "https://australia.national-lottery.com/{slug}/results-archive-{year}"
+LOTTERYWEST = "https://api.lotterywest.wa.gov.au/api/v1/games"
+LW_IDS = {"tattslotto": "5127", "powerball": "5132", "setforlife": "5237"}
+LW_OUT = db.DB_PATH.parent / "lotterywest.json"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"
 DELAY = 3.0  # seconds between requests
 
@@ -129,6 +137,38 @@ def fetch_archive_year(slug: str, year: int) -> list[dict]:
     return rows
 
 
+# ------------------------------------------------------------------ lotterywest
+
+def fetch_lotterywest() -> dict:
+    """Last 10 draws, prize amounts and next draw for each game, keyed by our game key."""
+    data = _request("GET", LOTTERYWEST, retries=2).json()["data"]
+    out = {}
+    for game, gid in LW_IDS.items():
+        g = data.get(gid)
+        if not g:
+            continue
+        draws, dividends = [], []
+        for r in g.get("results") or []:
+            main = [int(v) for _, v in sorted(r["winning_numbers"].items(), key=lambda kv: int(kv[0]))]
+            sec = [int(v) for _, v in sorted((r.get("supplementary_numbers") or {}).items(), key=lambda kv: int(kv[0]))]
+            row = {"draw_no": int(r["draw_num"]), "date": r["draw_date"], "main": main}
+            if game == "powerball":
+                row["powerball"], row["supp"] = sec, []
+            else:
+                row["supp"] = sec
+            draws.append(row)
+            dividends.append({"draw_no": row["draw_no"], "date": row["date"],
+                              "divisions": {d: {"each": float(v["each"]), "winners": int(v["winners"])}
+                                            for d, v in (r.get("divisions") or {}).items()}})
+        up = g.get("upcoming_draw") or {}
+        out[game] = {
+            "draws": draws,
+            "dividends": dividends,
+            "upcoming": {k: up.get(k) for k in ("draw_number", "draw_close", "sales_close", "jackpot", "jackpot_text")},
+        }
+    return out
+
+
 # ------------------------------------------------------------------ driver
 
 def last_date(con, game: str) -> date | None:
@@ -136,12 +176,23 @@ def last_date(con, game: str) -> date | None:
     return date.fromisoformat(v) if v else None
 
 
-def update(game: str, full: bool, source: str) -> None:
+def update(game: str, full: bool, source: str, lw: dict | None = None) -> None:
     plan = PLAN[game]
     today = date.today() + timedelta(days=1)  # runners are on UTC, a day behind Australia
     con = db.connect()
     have = None if full else last_date(con, game)
     print(f"\n== {game}: " + (f"updating from {have}" if have else "full download"), flush=True)
+
+    # Routine update: Lotterywest's last 10 draws, if they reach back to what we have.
+    if have and lw and game in lw and lw[game]["draws"]:
+        rows = lw[game]["draws"]
+        oldest = min(date.fromisoformat(r["date"]) for r in rows)
+        db.upsert(con, game, rows, "lotterywest")
+        print(f"    lotterywest: {len(rows)} draws, {oldest} .. {max(r['date'] for r in rows)}", flush=True)
+        if oldest <= have:
+            con.close()
+            return
+        print("    gap before Lotterywest's oldest draw; filling from other sources", flush=True)
 
     # Early history only the archive has (skipped once we've already got past it).
     if have is None or have < plan["archive_until"]:
@@ -182,8 +233,15 @@ def main(argv=None):
     ap.add_argument("--source", choices=["auto", "official", "archive"], default="auto")
     a = ap.parse_args(argv)
     db.load_csv_if_empty()
+    lw = None
+    if a.source == "auto":
+        try:
+            lw = fetch_lotterywest()
+            LW_OUT.write_text(json.dumps(lw, indent=1))
+        except Exception as e:  # noqa: BLE001 - any failure just means we use the other sources
+            print(f"Lotterywest unavailable ({e}); using other sources", flush=True)
     for g in a.games:
-        update(g, a.full, a.source)
+        update(g, a.full, a.source, lw)
     db.write_csv()
     print()
     print(db.summary().to_string(index=False))

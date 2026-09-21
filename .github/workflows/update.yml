@@ -27,16 +27,23 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Download new draws
         run: python -m lottery.fetch
-      - name: Recompute stats
-        run: python -m lottery.export
-      - name: Commit if anything changed
+      - name: Check for changes
+        id: changes
         run: |
-          if git diff --quiet -- data/draws; then
-            echo "No new draws."
-            exit 0
+          if git diff --quiet -- data/draws data/lotterywest.json && [ -z "$(git status --porcelain -- data)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"; echo "No new draws."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: Recompute stats
+        if: steps.changes.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        run: python -m lottery.export
+      - name: Commit
+        if: steps.changes.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/draws docs/data/stats.json
+          git add data/draws data/lotterywest.json docs/data/stats.json
+          git diff --cached --quiet && { echo "Nothing to commit."; exit 0; }
           git commit -m "Update results $(date -u +%Y-%m-%d)"
           git push

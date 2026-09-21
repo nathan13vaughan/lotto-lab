@@ -12,7 +12,7 @@ export const GAMES = {
     key: "powerball", name: "Powerball", short: "Powerball",
     pool: 35, pick: 7, drawMain: 7, drawSupp: 0, suppLabel: "", pbPool: 20,
     divisions: [[1, 7, null, true], [2, 7, null, false], [3, 6, null, true], [4, 6, null, false],
-                [5, 5, null, true], [6, 5, null, false], [7, 4, null, true], [8, 3, null, true], [9, 2, null, true]],
+                [5, 5, null, true], [6, 4, null, true], [7, 5, null, false], [8, 3, null, true], [9, 2, null, true]],
   },
   setforlife: {
     key: "setforlife", name: "Set for Life", short: "Set for Life",

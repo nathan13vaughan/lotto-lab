@@ -16,6 +16,7 @@ from . import stats as S
 from .games import GAMES
 
 OUT = Path(__file__).resolve().parent.parent / "docs" / "data" / "stats.json"
+LW = db.DB_PATH.parent / "lotterywest.json"
 
 
 def _r(a, nd=3):
@@ -78,8 +79,14 @@ def game_stats(game) -> dict:
 
 def main():
     db.load_csv_if_empty()
-    out = {"updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-           "games": {g.key: game_stats(g) for g in GAMES.values()}}
+    lw = json.loads(LW.read_text()) if LW.exists() else {}
+    games = {}
+    for g in GAMES.values():
+        games[g.key] = game_stats(g)
+        extra = lw.get(g.key) or {}
+        games[g.key]["upcoming"] = extra.get("upcoming")          # next draw, jackpot, sales close
+        games[g.key]["dividends"] = extra.get("dividends") or []  # prize per division, recent draws
+    out = {"updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "games": games}
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(out, separators=(",", ":")))
     print(f"wrote {OUT} ({OUT.stat().st_size / 1024:.0f} KB)")

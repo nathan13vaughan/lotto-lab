@@ -32,7 +32,24 @@ const fmtDate = (iso, opts = { weekday: "short", day: "numeric", month: "short" 
   new Date(iso + "T12:00:00").toLocaleDateString("en-AU", opts);
 const money = (v) => v.toLocaleString("en-AU", { style: "currency", currency: "AUD" });
 
+const DRAW_STEP = { tattslotto: 2, powerball: 1, setforlife: 1 }; // draw numbers go up by this
+
+/** The draw a ticket bought now would be in: {no, date} or null if unknown. */
+function upcomingDraw(key) {
+  const up = stats?.games[key]?.upcoming;
+  if (!up?.draw_number || !up.draw_close) return null;
+  let no = up.draw_number, when = new Date(up.draw_close);
+  const days = DRAW_DAY[key] == null ? 1 : 7;
+  while (Date.now() > when.getTime()) { no += DRAW_STEP[key]; when = new Date(when.getTime() + days * 864e5); }
+  return { no, when };
+}
+
 function nextDraw(key) {
+  const up = upcomingDraw(key);
+  if (up) {
+    const same = up.when.toDateString() === new Date().toDateString();
+    return same ? "tonight" : up.when.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" });
+  }
   const d = new Date();
   const day = DRAW_DAY[key];
   if (day == null) return "tonight";
@@ -89,6 +106,14 @@ function renderControls() {
   $("trust").value = state.trust;
 }
 
+/** "tonight" / "on Sat, 26 Sept" for the upcoming draw, or "in draw 4713" for a past one. */
+function setDrawText(key, set) {
+  const up = upcomingDraw(key);
+  if (set.forDraw && up && set.forDraw < up.no) return `in draw ${set.forDraw}`;
+  const nd = nextDraw(key);
+  return nd === "tonight" ? "tonight" : "on " + nd;
+}
+
 function renderResults() {
   const set = state.sets[state.game];
   const g = game();
@@ -101,7 +126,7 @@ function renderResults() {
   const price = parseFloat(state.price[state.game]);
   const gain = ours - base;
   $("summary").innerHTML = `
-    <div class="big">${pct(ours)} <small>chance at least one game wins a prize ${nextDraw(g.key) === "tonight" ? "tonight" : "on " + nextDraw(g.key)}</small></div>
+    <div class="big">${pct(ours)} <small>chance at least one game wins a prize ${setDrawText(g.key, set)}</small></div>
     <div class="bar" role="img" aria-label="Your games ${pct(ours)} versus Quick Pick ${pct(base)}">
       <i class="base" style="width:${(base * 100).toFixed(2)}%"></i><i class="ours" style="width:${(ours * 100).toFixed(2)}%"></i>
     </div>
@@ -126,17 +151,26 @@ function renderLatest() {
 
   const set = state.sets[g.key];
   if (!set) { $("checkResult").innerHTML = ""; return; }
-  const draws = s.recent.filter((d) => d.draw_no > set.afterDraw && d.date >= localISO(new Date(set.createdAt))).reverse();
+  const draws = set.forDraw
+    ? s.recent.filter((d) => d.draw_no === set.forDraw)
+    : s.recent.filter((d) => d.draw_no > set.afterDraw && d.date >= localISO(new Date(set.createdAt))).reverse();
   if (!draws.length) {
-    $("checkResult").innerHTML = `<p class="nowin">Your games are for the next draw (${nextDraw(g.key)}). Results show up here the morning after.</p>`;
+    const up = upcomingDraw(g.key);
+    const which = set.forDraw && up && set.forDraw !== up.no && set.forDraw < up.no
+      ? `draw ${set.forDraw}. Its results aren't in yet`
+      : `draw ${set.forDraw ?? ""} (${nextDraw(g.key)}). Results show up here the morning after`;
+    $("checkResult").innerHTML = `<p class="nowin">Your games are for ${which}.</p>`;
     return;
   }
   let html = "";
   for (const d of draws.slice(-7)) {
     const res = checkLines(g, set.lines, d);
     const wins = res.map((r, i) => ({ ...r, i })).filter((r) => r.division);
+    const divs = s.dividends?.find((x) => x.draw_no === d.draw_no)?.divisions;
+    const prize = (w) => divs?.[w.division]?.each;
+    const total = wins.reduce((t, w) => t + (prize(w) || 0), 0);
     html += wins.length
-      ? `<div class="win">Draw ${d.draw_no} (${fmtDate(d.date)}): ${wins.length} winning game${wins.length > 1 ? "s" : ""}, ${wins.map((w) => `game ${w.i + 1} Division ${w.division}`).join(", ")}. Check the official results before claiming.</div>`
+      ? `<div class="win">Draw ${d.draw_no} (${fmtDate(d.date)}): ${wins.length} winning game${wins.length > 1 ? "s" : ""}${total ? `, about ${money(total)}` : ""}.<br>${wins.map((w) => `Game ${w.i + 1}: Division ${w.division}${prize(w) ? ` (${money(prize(w))})` : ""}`).join("<br>")}<br><small>Check the official results before claiming.</small></div>`
       : `<p class="nowin">Draw ${d.draw_no} (${fmtDate(d.date)}): no prizes this time.</p>`;
   }
   const last = draws[draws.length - 1];
@@ -179,8 +213,17 @@ function renderStats() {
     </div>`;
 }
 
+function renderNextDraw() {
+  const g = game();
+  const up = upcomingDraw(g.key);
+  const jp = stats?.games[g.key]?.upcoming?.jackpot_text;
+  $("nextDraw").innerHTML = up
+    ? `Next draw <b>${nextDraw(g.key) === "tonight" ? "tonight" : nextDraw(g.key)}</b> · Draw ${up.no}${jp ? ` · <b>${jp}</b>` : ""}`
+    : "";
+}
+
 function renderAll() {
-  renderTabs(); renderControls(); renderResults(); renderLatest(); renderStats();
+  renderTabs(); renderNextDraw(); renderControls(); renderResults(); renderLatest(); renderStats();
 }
 
 // ------------------------------------------------------------------ actions
@@ -197,7 +240,7 @@ function pick() {
     });
     const ev = strategy() === "random" ? null : evaluate(g, lines, 60000);
     state.sets[g.key] = {
-      createdAt: new Date().toISOString(), afterDraw: s?.latest.draw_no ?? 0, strategy: strategy(),
+      createdAt: new Date().toISOString(), afterDraw: s?.latest.draw_no ?? 0, forDraw: upcomingDraw(g.key)?.no ?? null, strategy: strategy(),
       lines, entered: lines.map(() => false), eval: ev && { anyPrize: ev.anyPrize },
     };
     save();
@@ -287,7 +330,7 @@ fetch("data/stats.json", { cache: "no-cache" })
     $("updated").textContent = "Results to " + fmtDate(
       Object.values(d.games).map((g) => g.last_date).sort().pop(), { day: "numeric", month: "short" });
     $("updated").title = "Data updated " + up.toLocaleString("en-AU");
-    renderLatest(); renderStats();
+    renderNextDraw(); renderResults(); renderLatest(); renderStats();
   })
   .catch(() => { $("latest").innerHTML = `<p class="nowin">Couldn't load results. You can still pick numbers.</p>`; });
 

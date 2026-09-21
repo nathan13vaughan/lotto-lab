@@ -197,3 +197,6 @@ button:focus-visible, summary:focus-visible, input:focus-visible { outline: 2px 
 .lines li { gap: 8px; padding: 10px; }
 .lines li .idx, .checklist .l .idx { width: 18px; }
 #results, #checkCard { scroll-margin-top: 64px; }
+.nextdraw { text-align: center; font-size: .88rem; color: var(--ink-2); margin: -6px 0 14px; min-height: 1.3em; }
+.nextdraw b { color: var(--ink); }
+.win small { font-weight: 500; opacity: .85; }

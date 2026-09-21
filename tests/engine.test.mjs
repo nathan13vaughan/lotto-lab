@@ -9,6 +9,19 @@ test("division 1 odds match the official odds", () => {
   }
 });
 
+test("every division's odds match the official odds (Lotterywest)", () => {
+  const official = {
+    tattslotto: [8145060, 678755, 36690, 733, 298, 52],
+    powerball: [134490400, 7078442, 686176, 36115, 16943, 1173, 892, 188, 65],
+    setforlife: [38320568, 2737183, 156411, 25701, 3067, 894, 167, 80],
+  };
+  for (const [k, odds] of Object.entries(official)) {
+    const ours = lineOdds(GAMES[k]).slice(1).map((p) => 1 / p);
+    assert.equal(ours.length, odds.length, k);
+    ours.forEach((v, i) => assert.ok(Math.abs(v - odds[i]) <= 1, `${k} div ${i + 1}: ${v} vs ${odds[i]}`));
+  }
+});
+
 test("division rules", () => {
   const t = GAMES.tattslotto;
   assert.equal(division(t, 6, 0), 1);
