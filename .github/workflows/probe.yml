@@ -1,0 +1,25 @@
+name: Probe archive from Python
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install requests
+      - run: |
+          python - <<'PY'
+          import requests, time
+          UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"
+          for i in range(3):
+              for url in ["https://australia.national-lottery.com/saturday-lotto/results-archive-2026",
+                          "https://australia.national-lottery.com/set-for-life/results-archive-2026"]:
+                  t = time.time()
+                  try:
+                      r = requests.get(url, headers={"User-Agent": UA}, timeout=30)
+                      print(i, url[-40:], r.status_code, len(r.text), f"{time.time()-t:.1f}s")
+                  except Exception as e:
+                      print(i, url[-40:], "ERROR", type(e).__name__, str(e)[:200])
+                  time.sleep(3)
+          PY
