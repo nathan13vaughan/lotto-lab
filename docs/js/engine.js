@@ -130,23 +130,73 @@ export const STRATEGIES = {
 };
 
 /**
+ * Exact chance that two lines sharing `o` main numbers BOTH win a prize in the
+ * same draw (and, for Powerball, whether they carry the same Powerball).
+ * Enumerates how the drawn balls fall across the four regions: shared, only A,
+ * only B, neither.
+ */
+export function jointOdds(game, o, samePB = false) {
+  const { pool, pick: k, drawMain: D, drawSupp: S, pbPool } = game;
+  const sizes = [o, k - o, k - o, pool - 2 * k + o];
+  const totMain = choose(pool, D), totSupp = choose(pool - D, S);
+  const pbCases = !pbPool ? [[false, false, 1]]
+    : samePB ? [[true, true, 1 / pbPool], [false, false, 1 - 1 / pbPool]]
+    : [[true, false, 1 / pbPool], [false, true, 1 / pbPool], [false, false, 1 - 2 / pbPool]];
+  let p = 0;
+  const m = [0, 0, 0, 0], sp = [0, 0, 0, 0];
+  for (m[0] = 0; m[0] <= Math.min(sizes[0], D); m[0]++)
+  for (m[1] = 0; m[1] <= Math.min(sizes[1], D - m[0]); m[1]++)
+  for (m[2] = 0; m[2] <= Math.min(sizes[2], D - m[0] - m[1]); m[2]++) {
+    m[3] = D - m[0] - m[1] - m[2];
+    if (m[3] > sizes[3]) continue;
+    const pm = sizes.reduce((acc, sz, i) => acc * choose(sz, m[i]), 1) / totMain;
+    if (!pm) continue;
+    for (sp[0] = 0; sp[0] <= Math.min(sizes[0] - m[0], S); sp[0]++)
+    for (sp[1] = 0; sp[1] <= Math.min(sizes[1] - m[1], S - sp[0]); sp[1]++)
+    for (sp[2] = 0; sp[2] <= Math.min(sizes[2] - m[2], S - sp[0] - sp[1]); sp[2]++) {
+      sp[3] = S - sp[0] - sp[1] - sp[2];
+      if (sp[3] > sizes[3] - m[3]) continue;
+      const ps = sizes.reduce((acc, sz, i) => acc * choose(sz - m[i], sp[i]), 1) / totSupp;
+      if (!ps) continue;
+      for (const [ha, hb, pp] of pbCases) {
+        if (division(game, m[0] + m[1], sp[0] + sp[1], ha) && division(game, m[0] + m[2], sp[0] + sp[2], hb)) p += pm * ps * pp;
+      }
+    }
+  }
+  return p;
+}
+
+const costCache = {};
+/** cost[same][o]: joint-win chance, in units of "two lines sharing one number". */
+function pairCosts(game) {
+  if (costCache[game.key]) return costCache[game.key];
+  const unit = jointOdds(game, 1, false);
+  const row = (same) => Array.from({ length: game.pick + 1 }, (_, o) => jointOdds(game, o, same) / unit);
+  return (costCache[game.key] = [row(false), game.pbPool ? row(true) : row(false)]);
+}
+
+/**
  * Pick n lines. Starts from random lines and improves them by swapping one
- * number at a time (simulated annealing), minimising:
- *   spread * sum over line pairs of overlap^2   (keep games different)
+ * number (or Powerball) at a time with simulated annealing, minimising:
+ *   spread * sum over pairs of lines of their chance of winning together
+ *            (the overlap that stops more of your games winning in one draw)
  * + pop    * popularity of each line           (avoid shared prizes)
  * - bias   * shrunk z-scores of numbers / pairs (hot numbers)
+ * Keeping joint wins low maximises the chance that at least one line wins.
  */
 export function generate(game, n, opts = {}) {
   const st = STRATEGIES[opts.strategy || "spread"];
   const rand = opts.rand || Math.random;
-  const { pool, pick } = game;
+  const { pool, pick, pbPool } = game;
   const stats = opts.stats;
   const trust = opts.trust ?? 0.3;
   const lastDraw = opts.lastDraw || [];
 
-  let lines = Array.from({ length: n }, () => sample(pool, pick, rand));
-  if (opts.strategy === "random" || !st.spread && !st.pop && !st.bias) {
-    return finish(game, lines, rand, opts);
+  const lines = Array.from({ length: n }, () => sample(pool, pick, rand));
+  let pbs = pbPool ? balancedPowerballs(game, n, rand, opts) : null;
+  if (opts.strategy === "random") {
+    pbs = pbPool ? lines.map(() => 1 + Math.floor(rand() * pbPool)) : null;
+    return finish(lines, pbs);
   }
 
   const nz = new Float64Array(pool + 1);
@@ -169,26 +219,44 @@ export function generate(game, n, opts = {}) {
   };
   const lineOwn = (l) => st.pop * popularity(l, game, lastDraw) - st.bias * lineBias(l);
 
+  const legacy = opts.costModel === "overlap2";
+  const [costDiff, costSame] = pairCosts(game);
+  const cost = (o, same) => (legacy ? o * o : same ? costSame[o] : costDiff[o]);
+  const sameAt = (i, j) => (pbs ? pbs[i] === pbs[j] : false);
+
   // membership matrix and pairwise overlaps
   const has = lines.map((l) => { const h = new Uint8Array(pool + 1); l.forEach((v) => (h[v] = 1)); return h; });
   const ov = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) =>
     i === j ? 0 : lines[i].reduce((c, v) => c + has[j][v], 0)));
   const own = lines.map(lineOwn);
 
-  const iters = opts.iters ?? Math.min(60000, 4000 + n * pick * 250);
+  const iters = opts.iters ?? Math.min(160000, 5000 + n * pick * 300);
   let temp = 2.0;
   const cool = Math.pow(0.002 / temp, 1 / iters);
   for (let it = 0; it < iters; it++, temp *= cool) {
     const i = Math.floor(rand() * n);
+    if (pbs && !legacy && rand() < 0.15) {
+      // move: give line i a different Powerball
+      const nb = 1 + Math.floor(rand() * pbPool);
+      if (nb === pbs[i]) continue;
+      let d = 0;
+      for (let j = 0; j < n; j++) {
+        if (j === i) continue;
+        d += cost(ov[i][j], pbs[j] === nb) - cost(ov[i][j], pbs[j] === pbs[i]);
+      }
+      d *= st.spread;
+      if (d <= 0 || rand() < Math.exp(-d / temp)) pbs[i] = nb;
+      continue;
+    }
     const pos = Math.floor(rand() * pick);
     const a = lines[i][pos];
-    let b = 1 + Math.floor(rand() * pool);
+    const b = 1 + Math.floor(rand() * pool);
     if (has[i][b]) continue;
     let dSpread = 0;
     for (let j = 0; j < n; j++) {
       if (j === i) continue;
       const o = ov[i][j], o2 = o - has[j][a] + has[j][b];
-      dSpread += o2 * o2 - o * o;
+      if (o2 !== o) { const same = sameAt(i, j); dSpread += cost(o2, same) - cost(o, same); }
     }
     const cand = lines[i].slice(); cand[pos] = b;
     const newOwn = lineOwn(cand);
@@ -203,24 +271,26 @@ export function generate(game, n, opts = {}) {
       lines[i] = cand; own[i] = newOwn;
     }
   }
-  return finish(game, lines, rand, opts);
+  return finish(lines, pbs);
 }
 
-function finish(game, lines, rand, opts) {
-  const out = lines.map((l) => ({ numbers: [...l].sort((a, b) => a - b) }));
-  if (game.pbPool) {
-    // Powerballs: spread evenly across 1..pbPool, in random order
-    const pbs = [];
-    while (pbs.length < out.length) {
-      const round = sample(game.pbPool, game.pbPool, rand);
-      if (opts.strategy === "hot" && opts.stats?.pb_z) {
-        round.sort((x, y) => opts.stats.pb_z[y - 1] - opts.stats.pb_z[x - 1]);
-      }
-      pbs.push(...round);
-    }
-    out.forEach((l, i) => (l.powerball = opts.strategy === "random" ? 1 + Math.floor(rand() * game.pbPool) : pbs[i]));
+/** Powerballs spread evenly over 1..pbPool (hot strategy: hottest first). */
+function balancedPowerballs(game, n, rand, opts) {
+  const pbs = [];
+  while (pbs.length < n) {
+    const round = sample(game.pbPool, game.pbPool, rand);
+    if (opts.strategy === "hot" && opts.stats?.pb_z) round.sort((x, y) => opts.stats.pb_z[y - 1] - opts.stats.pb_z[x - 1]);
+    pbs.push(...round);
   }
-  return out;
+  return pbs.slice(0, n);
+}
+
+function finish(lines, pbs) {
+  return lines.map((l, i) => {
+    const out = { numbers: [...l].sort((a, b) => a - b) };
+    if (pbs) out.powerball = pbs[i];
+    return out;
+  });
 }
 
 // ------------------------------------------------------------------ evaluation

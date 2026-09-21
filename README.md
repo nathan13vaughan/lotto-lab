@@ -18,18 +18,20 @@ There are three ways to pick:
 | **Hot numbers** | Leans towards numbers and pairs that have come up more than expected. |
 | **Quick Pick** | Plain random, the same as the Lott app's Quick Pick. |
 
-After the draw, the app checks your saved games against the results and shows any winning divisions.
+After the draw, the app checks your saved games against the results and shows any winning divisions, with prize amounts. It also shows your chance of each division, the average prize for each, and roughly how much a set of games wins back per draw.
 
 ## What it can and can't do
 
 - **Every game has the same odds of winning Division 1.** For Saturday Lotto that's 1 in 8,145,060, whichever numbers you choose. No strategy changes that.
 - **Coverage raises the chance that at least one of your games wins a prize.** Here's what 18 games gets you for each draw:
 
-  | Game | 18 Quick Picks | 18 Best coverage games |
-  |---|---|---|
-  | Saturday Lotto | 35.2% | 38.9% |
-  | Powerball | 33.9% | 40.3% |
-  | Set for Life | 30.5% | 33.3% |
+  | Game | 18 Quick Picks | 18 Best coverage | 50 Quick Picks | 50 Best coverage |
+  |---|---|---|---|---|
+  | Saturday Lotto | 35.2% | 38.9% | 70.1% | 81.8% |
+  | Powerball | 33.9% | 40.2% | 68.3% | 82.2% |
+  | Set for Life | 30.5% | 33.5% | 63.5% | 72.0% |
+
+  The optimiser minimises the exact chance that two of your games win in the same draw. That depends on how many numbers they share and, for Powerball, whether they share a Powerball.
 
   The average number of prizes stays the same. Coverage means more draws where you win something, but you win several prizes in one draw less often.
 - **Avoiding popular numbers doesn't change your odds.** If you do win, fewer people share the prize with you.

@@ -200,3 +200,10 @@ button:focus-visible, summary:focus-visible, input:focus-visible { outline: 2px 
 .nextdraw { text-align: center; font-size: .88rem; color: var(--ink-2); margin: -6px 0 14px; min-height: 1.3em; }
 .nextdraw b { color: var(--ink); }
 .win small { font-weight: 500; opacity: .85; }
+.breakdown { border-top: 1px solid var(--line); padding: 8px 0; font-size: .88rem; }
+.breakdown summary { cursor: pointer; color: var(--accent); font-weight: 600; padding: 2px 0; }
+.breakdown table { width: 100%; border-collapse: collapse; margin: 8px 0; font-variant-numeric: tabular-nums; }
+.breakdown th { text-align: left; color: var(--muted); font-weight: 500; font-size: .75rem; padding: 4px 4px 4px 0; }
+.breakdown td { padding: 5px 4px 5px 0; border-top: 1px solid var(--line); }
+.breakdown td:nth-child(3), .breakdown td:nth-child(4), .breakdown th:nth-child(3), .breakdown th:nth-child(4) { text-align: right; }
+.breakdown p { color: var(--ink-2); margin: 6px 0; }

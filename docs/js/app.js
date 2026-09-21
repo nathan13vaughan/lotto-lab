@@ -114,6 +114,41 @@ function setDrawText(key, set) {
   return nd === "tonight" ? "tonight" : "on " + nd;
 }
 
+/** Average prize per division over the recent draws we have dividends for. */
+function avgDividends(key) {
+  const out = {};
+  for (const d of stats?.games[key]?.dividends || []) {
+    for (const [div, v] of Object.entries(d.divisions)) {
+      if (!v.winners || !v.each) continue;
+      (out[div] ||= []).push(v.each);
+    }
+  }
+  return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, v.reduce((a, b) => a + b, 0) / v.length]));
+}
+
+function prizeBreakdown(g, set) {
+  const odds = lineOdds(g);
+  const n = set.lines.length;
+  const avg = avgDividends(g.key);
+  const per = set.eval?.perDivision;
+  const jackpot = stats?.games[g.key]?.upcoming?.jackpot_text;
+  let back = 0;
+  const rows = g.divisions.map(([d, m, supp, pb]) => {
+    const need = `${m}${supp === true ? ` + ${g.suppLabel === "bonus" ? "bonus" : "supp"}` : ""}${pb === true ? " + PB" : ""}`;
+    // rare divisions: the simulation barely sees them, so use the exact single-game odds
+    const chance = per && n * odds[d] > 0.02 ? per[d] : 1 - (1 - odds[d]) ** n;
+    const prize = d === 1 ? (jackpot || "Jackpot") : avg[d] ? money(avg[d]) : "�";
+    if (d !== 1 && avg[d]) back += n * odds[d] * avg[d];
+    return `<tr><td>Div ${d}</td><td>${need}</td><td>${chance < 0.001 ? oneIn(chance) : pct(chance)}</td><td>${prize}</td></tr>`;
+  }).join("");
+  const price = parseFloat(state.price[g.key]);
+  return `<details class="breakdown"><summary>Chance of each prize</summary>
+    <table><thead><tr><th></th><th>Match</th><th>Your chance</th><th>Avg prize</th></tr></thead><tbody>${rows}</tbody></table>
+    <p>Your chance: at least one of your ${n} games wins that division this draw. Average prizes are from the last ${stats?.games[g.key]?.dividends?.length || 0} draws.</p>
+    ${back ? `<p>On average these ${n} games win back about <b>${money(back)}</b> a draw, not counting Division 1${price > 0 ? `, against a ticket cost of ${money(n * price)}` : ""}. That's the same for any ${n} games.</p>` : ""}
+  </details>`;
+}
+
 function renderResults() {
   const set = state.sets[state.game];
   const g = game();
@@ -122,7 +157,7 @@ function renderResults() {
   const odds = lineOdds(g);
   const n = set.lines.length;
   const base = randomSetChance(g, n);
-  const ours = set.eval?.anyPrize ?? base;
+  const ours = set.strategy === "random" ? base : (set.eval?.anyPrize ?? base);
   const price = parseFloat(state.price[state.game]);
   const gain = ours - base;
   $("summary").innerHTML = `
@@ -136,6 +171,7 @@ function renderResults() {
     <div class="row"><span>Each game wins Division 1</span><span>${oneIn(odds[1])}</span></div>
     <div class="row"><span>Average prizes per draw</span><span>${(n * odds[0]).toFixed(2)} (same for any ${n} games)</span></div>
     ${price > 0 ? `<div class="row"><span>Ticket cost (${n} × ${money(price)})</span><span>${money(n * price)}</span></div>` : ""}
+    ${prizeBreakdown(g, set)}
     <div class="row"><span>Picked</span><span>${new Date(set.createdAt).toLocaleString("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })} · ${STRATEGIES[set.strategy].label}</span></div>`;
   $("lines").innerHTML = set.lines.map((l, i) =>
     `<li data-i="${i}" class="${set.entered?.[i] ? "done" : ""}" aria-pressed="${!!set.entered?.[i]}">
@@ -238,10 +274,10 @@ function pick() {
     const lines = generate(g, count(), {
       strategy: strategy(), stats: s, trust: state.trust, lastDraw: s?.latest.main || [],
     });
-    const ev = strategy() === "random" ? null : evaluate(g, lines, 60000);
+    const ev = evaluate(g, lines, 60000);
     state.sets[g.key] = {
       createdAt: new Date().toISOString(), afterDraw: s?.latest.draw_no ?? 0, forDraw: upcomingDraw(g.key)?.no ?? null, strategy: strategy(),
-      lines, entered: lines.map(() => false), eval: ev && { anyPrize: ev.anyPrize },
+      lines, entered: lines.map(() => false), eval: { anyPrize: ev.anyPrize, perDivision: ev.perDivision },
     };
     save();
     renderResults(); renderLatest();
