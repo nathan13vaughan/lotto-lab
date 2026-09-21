@@ -1,0 +1,20 @@
+name: Probe sources
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe
+        run: |
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"
+          p() { printf '%-70s ' "$1"; curl -s -m 25 -o /tmp/out -w "%{http_code} %{size_download}B" -A "$UA" -H "Accept-Language: en-AU,en;q=0.9" "${@:2}" "$1"; echo; head -c 300 /tmp/out | tr '\n' ' '; echo; echo; }
+          p https://data.api.thelott.com/sales/vmax/web/data/lotto/latestresults -X POST -H "Content-Type: application/json" -H "Origin: https://www.thelott.com" -H "Referer: https://www.thelott.com/" -d '{"CompanyId":"Tattersalls","MaxDrawCountPerProduct":1,"OptionalProductFilter":["TattsLotto"]}'
+          p https://australia.national-lottery.com/saturday-lotto/results-archive-2026
+          p https://en.lottolyzer.com/history/australia/tattslotto/page/1/per-page/50/summary-view
+          p https://en.lottolyzer.com/history/australia/set-for-life/page/1/per-page/50/summary-view
+          p https://www.ozlotteries.com/saturday-lotto/results
+          p https://www.lotterywest.wa.gov.au/games/saturday-lotto
+          p https://api.lotterywest.wa.gov.au/api/v1/games
+          p https://www.thelott.com/saturday-lotto/results
+          p https://www.lottoresults.com.au/saturday-lotto
+          p https://www.australianlottoresults.com/
