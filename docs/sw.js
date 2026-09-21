@@ -1,5 +1,5 @@
 // Offline support: app shell from cache, results data network-first.
-const CACHE = "lotto-lab-v1";
+const CACHE = "lotto-lab-v2";
 const SHELL = ["./", "index.html", "css/app.css", "js/app.js", "js/engine.js", "manifest.webmanifest", "icons/icon.svg"];
 
 self.addEventListener("install", (e) => {

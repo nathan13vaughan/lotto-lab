@@ -1,4 +1,7 @@
-import { GAMES, STRATEGIES, generate, evaluate, lineOdds, randomSetChance, checkLines } from "./engine.js";
+import {
+  GAMES, STRATEGIES, generate, evaluate, lineOdds, randomSetChance, checkLines,
+  systemOdds, systemGames, pickSystem, checkSystem,
+} from "./engine.js";
 
 const $ = (id) => document.getElementById(id);
 const STORE = "lotto-lab:v1";
@@ -8,7 +11,7 @@ const DRAW_TEXT = { tattslotto: "Saturday", powerball: "Thursday", setforlife: "
 
 // ------------------------------------------------------------------ state
 
-const defaults = { game: "tattslotto", counts: {}, strategy: {}, price: {}, trust: 0.3, sets: {} };
+const defaults = { game: "tattslotto", counts: {}, strategy: {}, price: {}, trust: 0.3, sets: {}, mode: {}, sys: {}, powerhit: {} };
 let state = load();
 let stats = null;
 
@@ -23,6 +26,19 @@ function save() {
 const game = () => GAMES[state.game];
 const count = () => state.counts[state.game] ?? 18;
 const strategy = () => state.strategy[state.game] ?? "spread";
+const isSystem = () => state.mode[state.game] === "system";
+const powerhit = () => !!game().pbPool && !!state.powerhit[state.game];
+const sysMin = () => (powerhit() ? game().pick : game().pick + 1);
+const sysSize = () => Math.max(sysMin(), Math.min(20, state.sys[state.game] ?? game().pick + 2));
+
+// In System mode the strategies mean something slightly different: a system
+// covers every combination of its numbers, so there's nothing to spread.
+const SYSTEM_STRATEGY = {
+  spread: { label: "Least popular", blurb: "Picks numbers other players are less likely to choose (fewer birthdays, runs and patterns), so any prize is shared with fewer people." },
+  hot: { label: "Hot numbers", blurb: "Leans towards numbers that have come up more often. The backtests don't show this working." },
+  random: { label: "Random", blurb: "Plain random numbers, like a Quick Pick system." },
+};
+const strategyInfo = (k) => (isSystem() ? SYSTEM_STRATEGY[k] : STRATEGIES[k]);
 
 // ------------------------------------------------------------------ formatting
 
@@ -96,12 +112,29 @@ function renderTabs() {
 }
 
 function renderControls() {
-  $("count").textContent = count();
-  $("countChips").innerHTML = COUNT_CHIPS.map((n) =>
-    `<button type="button" data-count="${n}" aria-pressed="${n === count()}">${n}</button>`).join("");
-  $("strategyChips").innerHTML = Object.entries(STRATEGIES).map(([k, s]) =>
-    `<button type="button" role="radio" data-strategy="${k}" aria-checked="${k === strategy()}">${s.label}</button>`).join("");
-  $("strategyBlurb").textContent = STRATEGIES[strategy()].blurb;
+  const g = game();
+  const sys = isSystem();
+  document.querySelectorAll("#modeSeg [data-mode]").forEach((b) =>
+    b.setAttribute("aria-checked", String((b.dataset.mode === "system") === sys)));
+  $("h-games").textContent = sys ? "System size" : "How many games?";
+  if (sys) {
+    const m = sysSize(), n = systemGames(g, m, powerhit());
+    $("count").textContent = m;
+    $("countNote").textContent = `System ${m}${powerhit() ? " PowerHit" : ""} = ${n.toLocaleString("en-AU")} games`;
+    const sizes = [];
+    for (let v = sysMin(); v <= Math.min(20, sysMin() + 5); v++) sizes.push(v);
+    $("countChips").innerHTML = sizes.map((v) =>
+      `<button type="button" data-count="${v}" aria-pressed="${v === m}">${v}</button>`).join("")
+      + (g.pbPool ? `<button type="button" data-powerhit="1" aria-pressed="${powerhit()}">PowerHit</button>` : "");
+  } else {
+    $("count").textContent = count();
+    $("countNote").textContent = "";
+    $("countChips").innerHTML = COUNT_CHIPS.map((n) =>
+      `<button type="button" data-count="${n}" aria-pressed="${n === count()}">${n}</button>`).join("");
+  }
+  $("strategyChips").innerHTML = Object.keys(STRATEGIES).map((k) =>
+    `<button type="button" role="radio" data-strategy="${k}" aria-checked="${k === strategy()}">${strategyInfo(k).label}</button>`).join("");
+  $("strategyBlurb").textContent = strategyInfo(strategy()).blurb;
   $("price").value = state.price[state.game] ?? "";
   $("trust").value = state.trust;
 }
@@ -128,16 +161,17 @@ function avgDividends(key) {
 
 function prizeBreakdown(g, set) {
   const odds = lineOdds(g);
-  const n = set.lines.length;
+  const n = set.type === "system" ? set.system.games : set.lines.length;
   const avg = avgDividends(g.key);
   const per = set.eval?.perDivision;
+  const exact = !!set.eval?.exact;
   const jackpot = stats?.games[g.key]?.upcoming?.jackpot_text;
   let back = 0;
   const rows = g.divisions.map(([d, m, supp, pb]) => {
     const need = `${m}${supp === true ? ` + ${g.suppLabel === "bonus" ? "bonus" : "supp"}` : ""}${pb === true ? " + PB" : ""}`;
     // rare divisions: the simulation barely sees them, so use the exact single-game odds
-    const chance = per && n * odds[d] > 0.02 ? per[d] : 1 - (1 - odds[d]) ** n;
-    const prize = d === 1 ? (jackpot || "Jackpot") : avg[d] ? money(avg[d]) : "�";
+    const chance = exact ? per[d] : per && n * odds[d] > 0.02 ? per[d] : 1 - (1 - odds[d]) ** n;
+    const prize = d === 1 ? (jackpot || "Jackpot") : avg[d] ? money(avg[d]) : "–";
     if (d !== 1 && avg[d]) back += n * odds[d] * avg[d];
     return `<tr><td>Div ${d}</td><td>${need}</td><td>${chance < 0.001 ? oneIn(chance) : pct(chance)}</td><td>${prize}</td></tr>`;
   }).join("");
@@ -154,6 +188,7 @@ function renderResults() {
   const g = game();
   if (!set) { $("results").hidden = true; return; }
   $("results").hidden = false;
+  if (set.type === "system") return renderSystemResults(g, set);
   const odds = lineOdds(g);
   const n = set.lines.length;
   const base = randomSetChance(g, n);
@@ -178,6 +213,35 @@ function renderResults() {
        <span class="idx">${i + 1}</span>${ballsHTML(l, g)}<span class="tick" aria-hidden="true"></span></li>`).join("");
 }
 
+function renderSystemResults(g, set) {
+  const sy = set.system;
+  const odds = lineOdds(g);
+  const ours = set.eval.anyPrize;
+  const cmp = set.compare?.coverage ?? set.compare?.quick;
+  const cmpLabel = set.compare?.coverage != null ? `${sy.games} spread-out games` : `${sy.games} Quick Picks`;
+  const price = parseFloat(state.price[g.key]);
+  const name = `System ${sy.m}${sy.powerhit ? " PowerHit" : ""}`;
+  $("summary").innerHTML = `
+    <div class="big">${pct(ours)} <small>chance your ${name} wins a prize ${setDrawText(g.key, set)}</small></div>
+    <div class="bar" role="img" aria-label="${name} ${pct(ours)} versus ${cmpLabel} ${pct(cmp)}">
+      <i class="base" style="width:${(cmp * 100).toFixed(2)}%"></i><i class="ours" style="width:${(ours * 100).toFixed(2)}%"></i>
+    </div>
+    <div class="legend"><span><b style="background:var(--accent)"></b>${name}</span><span><b style="background:var(--muted);opacity:.6"></b>${cmpLabel}: ${pct(cmp)}</span></div>
+    <p class="note" style="margin-top:12px">A ${name} is ${sy.games.toLocaleString("en-AU")} games, and wins the same amount on average as any ${sy.games.toLocaleString("en-AU")} games. ${ours < cmp
+      ? `But it wins less often: when it does win, several of its games usually win together. For the most frequent wins, use Standard games instead.`
+      : `It wins about as often as spread-out games.`}</p>
+    <div class="row"><span>Games in this system</span><span>${sy.games.toLocaleString("en-AU")}</span></div>
+    <div class="row"><span>Division 1 chance</span><span>${oneIn(set.eval.perDivision[1])}</span></div>
+    ${price > 0 ? `<div class="row"><span>Ticket cost (${sy.games} × ${money(price)})</span><span>${money(sy.games * price)}</span></div>` : ""}
+    ${prizeBreakdown(g, set)}
+    <div class="row"><span>Picked</span><span>${new Date(set.createdAt).toLocaleString("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })} · ${SYSTEM_STRATEGY[set.strategy].label}</span></div>`;
+  const l = set.lines[0];
+  const pbHtml = g.pbPool ? (sy.powerhit ? `<span class="pill">PowerHit</span>` : `<span class="ball sep"></span><span class="ball pb">${l.powerball}</span>`) : "";
+  $("lines").innerHTML = `<li data-i="0" class="system${set.entered?.[0] ? " done" : ""}" aria-pressed="${!!set.entered?.[0]}">
+    <span class="idx">S${sy.m}</span><div class="balls">${l.numbers.map((n) => `<span class="ball">${n}</span>`).join("")}${pbHtml}</div>
+    <span class="tick" aria-hidden="true"></span></li>`;
+}
+
 function renderLatest() {
   const g = game();
   const s = stats?.games[g.key];
@@ -199,6 +263,29 @@ function renderLatest() {
     return;
   }
   let html = "";
+  if (set.type === "system") {
+    const sy = set.system;
+    for (const d of draws.slice(-7)) {
+      const r = checkSystem(g, set.lines[0].numbers, d, { powerhit: sy.powerhit, powerball: sy.powerball });
+      const divs = s.dividends?.find((x) => x.draw_no === d.draw_no)?.divisions;
+      const parts = [];
+      let total = 0;
+      r.won.forEach((cnt, div) => {
+        if (!cnt) return;
+        const each = divs?.[div]?.each;
+        if (each) total += cnt * each;
+        parts.push(`Division ${div} × ${cnt}${each ? ` (${money(cnt * each)})` : ""}`);
+      });
+      const hits = `${r.mainHits} number${r.mainHits === 1 ? "" : "s"}${r.suppHits ? ` + ${r.suppHits} ${g.suppLabel === "supps" ? (r.suppHits === 1 ? "supp" : "supps") : "bonus"}` : ""}${g.pbPool && r.pbHit ? " + Powerball" : ""}`;
+      html += parts.length
+        ? `<div class="win">Draw ${d.draw_no} (${fmtDate(d.date)}): your System ${sy.m} matched ${hits}${total ? `, about ${money(total)}` : ""}.<br>${parts.join("<br>")}<br><small>Check the official results before claiming.</small></div>`
+        : `<p class="nowin">Draw ${d.draw_no} (${fmtDate(d.date)}): matched ${hits}, no prizes this time.</p>`;
+    }
+    const last = draws[draws.length - 1];
+    html += `<div class="checklist"><div class="l system"><span class="idx">S${sy.m}</span>${ballsHTML({ numbers: set.lines[0].numbers, powerball: sy.powerhit ? null : sy.powerball }, g, last)}</div></div>`;
+    $("checkResult").innerHTML = html;
+    return;
+  }
   for (const d of draws.slice(-7)) {
     const res = checkLines(g, set.lines, d);
     const wins = res.map((r, i) => ({ ...r, i })).filter((r) => r.division);
@@ -254,7 +341,7 @@ function renderNextDraw() {
   const up = upcomingDraw(g.key);
   const jp = stats?.games[g.key]?.upcoming?.jackpot_text;
   $("nextDraw").innerHTML = up
-    ? `Next draw <b>${nextDraw(g.key) === "tonight" ? "tonight" : nextDraw(g.key)}</b> � Draw ${up.no}${jp ? ` � <b>${jp}</b>` : ""}`
+    ? `Next draw <b>${nextDraw(g.key) === "tonight" ? "tonight" : nextDraw(g.key)}</b> · Draw ${up.no}${jp ? ` · <b>${jp}</b>` : ""}`
     : "";
 }
 
@@ -271,14 +358,37 @@ function pick() {
   btn.textContent = "Picking…";
   setTimeout(() => {
     const s = stats?.games[g.key];
-    const lines = generate(g, count(), {
-      strategy: strategy(), stats: s, trust: state.trust, lastDraw: s?.latest.main || [],
-    });
-    const ev = evaluate(g, lines, 60000);
-    state.sets[g.key] = {
-      createdAt: new Date().toISOString(), afterDraw: s?.latest.draw_no ?? 0, forDraw: upcomingDraw(g.key)?.no ?? null, strategy: strategy(),
-      lines, entered: lines.map(() => false), eval: { anyPrize: ev.anyPrize, perDivision: ev.perDivision },
+    const opts = { strategy: strategy(), stats: s, trust: state.trust, lastDraw: s?.latest.main || [] };
+    const base = {
+      createdAt: new Date().toISOString(), afterDraw: s?.latest.draw_no ?? 0,
+      forDraw: upcomingDraw(g.key)?.no ?? null, strategy: strategy(),
     };
+    if (isSystem()) {
+      const m = sysSize(), ph = powerhit();
+      const numbers = pickSystem(g, m, opts);
+      let pb = null;
+      if (g.pbPool && !ph) {
+        pb = strategy() === "hot" && s?.pb_z?.length
+          ? s.pb_z.indexOf(Math.max(...s.pb_z)) + 1
+          : 1 + Math.floor(Math.random() * g.pbPool);
+      }
+      const so = systemOdds(g, m, ph);
+      // the same money spent on spread-out standard games, for comparison
+      const coverage = so.games <= 60 ? evaluate(g, generate(g, so.games, { strategy: "spread" }), 40000).anyPrize : null;
+      state.sets[g.key] = {
+        ...base, type: "system", system: { m, powerhit: ph, powerball: pb, games: so.games },
+        lines: [{ numbers, powerball: pb }], entered: [false],
+        eval: { anyPrize: so.anyPrize, perDivision: so.perDivision, exact: true },
+        compare: { coverage, quick: randomSetChance(g, so.games) },
+      };
+    } else {
+      const lines = generate(g, count(), opts);
+      const ev = evaluate(g, lines, 60000);
+      state.sets[g.key] = {
+        ...base, lines, entered: lines.map(() => false),
+        eval: { anyPrize: ev.anyPrize, perDivision: ev.perDivision },
+      };
+    }
     save();
     renderResults(); renderLatest();
     btn.disabled = false;
@@ -291,6 +401,11 @@ function asText() {
   const g = game();
   const set = state.sets[g.key];
   if (!set) return "";
+  if (set.type === "system") {
+    const sy = set.system;
+    const pb = g.pbPool ? (sy.powerhit ? "  PowerHit (all Powerballs)" : `  PB ${sy.powerball}`) : "";
+    return `${g.name} System ${sy.m} (${sy.games.toLocaleString("en-AU")} games)\n${set.lines[0].numbers.join(" ")}${pb}`;
+  }
   const rows = set.lines.map((l, i) => `${String(i + 1).padStart(2)}) ${l.numbers.join(" ")}${l.powerball ? `  PB ${l.powerball}` : ""}`);
   return `${g.name}, ${set.lines.length} games (${STRATEGIES[set.strategy].label})\n${rows.join("\n")}`;
 }
@@ -319,13 +434,24 @@ $("gameTabs").addEventListener("click", (e) => {
 document.querySelector(".stepper").addEventListener("click", (e) => {
   const b = e.target.closest("[data-step]");
   if (!b) return;
-  state.counts[state.game] = Math.min(50, Math.max(1, count() + Number(b.dataset.step)));
+  if (isSystem()) state.sys[state.game] = Math.min(20, Math.max(sysMin(), sysSize() + Number(b.dataset.step)));
+  else state.counts[state.game] = Math.min(50, Math.max(1, count() + Number(b.dataset.step)));
   save(); renderControls();
 });
 $("countChips").addEventListener("click", (e) => {
+  if (e.target.closest("[data-powerhit]")) {
+    state.powerhit[state.game] = !powerhit(); save(); renderControls(); return;
+  }
   const b = e.target.closest("[data-count]");
   if (!b) return;
-  state.counts[state.game] = Number(b.dataset.count); save(); renderControls();
+  if (isSystem()) state.sys[state.game] = Number(b.dataset.count);
+  else state.counts[state.game] = Number(b.dataset.count);
+  save(); renderControls();
+});
+$("modeSeg").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-mode]");
+  if (!b) return;
+  state.mode[state.game] = b.dataset.mode; save(); renderControls();
 });
 $("strategyChips").addEventListener("click", (e) => {
   const b = e.target.closest("[data-strategy]");

@@ -68,3 +68,46 @@ test("checkLines", () => {
                        { main: [1, 2, 10, 11, 12, 13, 14], powerball: [9] });
   assert.deepEqual(r[0], { mainHits: 2, suppHits: 0, pbHit: true, division: 9 });
 });
+
+import { systemOdds, systemGames } from "../docs/js/engine.js";
+
+test("a System of k numbers is just one game", () => {
+  for (const g of Object.values(GAMES)) {
+    const so = systemOdds(g, g.pick);
+    const lo = lineOdds(g);
+    assert.equal(so.games, 1);
+    lo.forEach((p, d) => assert.ok(Math.abs(so.perDivision[d] - p) < 1e-12, `${g.key} div ${d}`));
+  }
+});
+
+test("system odds match a simulation of its expanded games", () => {
+  const combos = (arr, k) => k === 0 ? [[]] : arr.flatMap((v, i) => combos(arr.slice(i + 1), k - 1).map((c) => [v, ...c]));
+  for (const [key, m, powerhit] of [["tattslotto", 8, false], ["setforlife", 9, false], ["powerball", 8, false], ["powerball", 7, true]]) {
+    const g = GAMES[key];
+    const nums = Array.from({ length: m }, (_, i) => i * 3 + 2);
+    const lines = [];
+    for (const c of combos(nums, g.pick)) {
+      if (g.pbPool) for (const pb of powerhit ? Array.from({ length: g.pbPool }, (_, i) => i + 1) : [7]) lines.push({ numbers: c, powerball: pb });
+      else lines.push({ numbers: c });
+    }
+    assert.equal(lines.length, systemGames(g, m, powerhit));
+    const exact = systemOdds(g, m, powerhit);
+    const sim = evaluate(g, lines, 200000, mulberry32(5));
+    assert.ok(Math.abs(exact.anyPrize - sim.anyPrize) < 0.004, `${key} S${m}${powerhit ? " PowerHit" : ""}: ${exact.anyPrize} vs ${sim.anyPrize}`);
+    const expTotal = exact.expectedPrizes.reduce((a, b) => a + b, 0);
+    assert.ok(Math.abs(expTotal - sim.expectedPrizes) < 0.02 * Math.max(1, expTotal), `${key} expected prizes ${expTotal} vs ${sim.expectedPrizes}`);
+  }
+});
+
+import { checkSystem } from "../docs/js/engine.js";
+
+test("checkSystem counts winning games like checking every expanded game", () => {
+  const g = GAMES.tattslotto;
+  const nums = [1, 10, 27, 32, 13, 26, 40, 41]; // System 8
+  const draw = { main: [1, 10, 27, 32, 33, 39], supp: [13, 26] };
+  const r = checkSystem(g, nums, draw);
+  const combos = (arr, k) => k === 0 ? [[]] : arr.flatMap((v, i) => combos(arr.slice(i + 1), k - 1).map((c) => [v, ...c]));
+  const brute = new Array(7).fill(0);
+  checkLines(g, combos(nums, 6).map((c) => ({ numbers: c })), draw).forEach((x) => x.division && brute[x.division]++);
+  assert.deepEqual(r.won, brute);
+});

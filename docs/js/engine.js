@@ -345,3 +345,96 @@ export function checkLines(game, lines, draw) {
     return { mainHits: m, suppHits: s, pbHit, division: division(game, m, s, pbHit) };
   });
 }
+
+// ------------------------------------------------------------------ systems
+
+/** Number of standard games in a System m (every k-number combination of m numbers). */
+export function systemGames(game, m, powerhit = false) {
+  return choose(m, game.pick) * (powerhit ? game.pbPool : 1);
+}
+
+/**
+ * Exact odds for a System entry of m numbers (plus, for Powerball, either one
+ * Powerball on every game or PowerHit = every Powerball).
+ * Returns perDivision[d] = chance at least one game in the system wins division d,
+ * anyPrize, and expectedPrizes[d] = average number of winning games in division d.
+ */
+export function systemOdds(game, m, powerhit = false) {
+  const { pool, pick: k, drawMain: D, drawSupp: S, pbPool } = game;
+  const nd = game.divisions.length;
+  const per = new Array(nd + 1).fill(0), expd = new Array(nd + 1).fill(0);
+  let any = 0;
+  const totMain = choose(pool, D), totSupp = choose(pool - D, S);
+  // each case: [probability, [[pbHit, how many copies of each main combination], ...]]
+  const pbCases = !pbPool ? [[1, [[false, 1]]]]
+    : powerhit ? [[1, [[true, 1], [false, pbPool - 1]]]]   // one copy has the drawn Powerball, the rest don't
+    : [[1 / pbPool, [[true, 1]]], [1 - 1 / pbPool, [[false, 1]]]];
+  for (let h = 0; h <= Math.min(m, D); h++) {
+    const ph = (choose(m, h) * choose(pool - m, D - h)) / totMain;
+    if (!ph) continue;
+    for (let s = 0; s <= Math.min(m - h, S); s++) {
+      const ps = (choose(m - h, s) * choose(pool - D - (m - h), S - s)) / totSupp;
+      if (!ps) continue;
+      const rest = m - h - s;
+      for (const [pp, copies] of pbCases) {
+        const won = new Array(nd + 1).fill(0);
+        // every game in the system: a main hits, b supp hits, the rest drawn from non-hits
+        for (let a = 0; a <= Math.min(h, k); a++) for (let b = 0; b <= Math.min(s, k - a); b++) {
+          const c = k - a - b;
+          if (c > rest) continue;
+          const count = choose(h, a) * choose(s, b) * choose(rest, c);
+          for (const [pbHit, mult] of copies) {
+            const d = division(game, a, b, pbHit);
+            if (d) won[d] += count * mult;
+          }
+        }
+        const p = ph * ps * pp;
+        let anyHere = false;
+        for (let d = 1; d <= nd; d++) if (won[d]) { per[d] += p; expd[d] += p * won[d]; anyHere = true; }
+        if (anyHere) any += p;
+      }
+    }
+  }
+  per[0] = any;
+  return { games: systemGames(game, m, powerhit), anyPrize: any, perDivision: per, expectedPrizes: expd };
+}
+
+/** Pick m numbers for a system: least-popular (or hottest) of many random candidates. */
+export function pickSystem(game, m, opts = {}) {
+  const rand = opts.rand || Math.random;
+  const st = opts.strategy || "spread";
+  if (st === "random") return sample(game.pool, m, rand).sort((a, b) => a - b);
+  const trust = opts.trust ?? 0.3, nz = opts.stats?.number_z;
+  let best = null, bestScore = Infinity;
+  for (let t = 0; t < 4000; t++) {
+    const c = sample(game.pool, m, rand);
+    let score = popularity(c, game, opts.lastDraw || []);
+    if (st === "hot" && nz) score -= c.reduce((acc, v) => acc + nz[v - 1] * trust, 0);
+    if (score < bestScore) { bestScore = score; best = c; }
+  }
+  return best.sort((a, b) => a - b);
+}
+
+/** Winning games per division for a System entry against an actual draw. */
+export function checkSystem(game, numbers, draw, { powerhit = false, powerball = null } = {}) {
+  const main = new Set(draw.main), supp = new Set(draw.supp || []);
+  const k = game.pick;
+  const h = numbers.filter((v) => main.has(v)).length;
+  const s = numbers.filter((v) => supp.has(v)).length;
+  const rest = numbers.length - h - s;
+  const drawnPB = (draw.powerball || [])[0];
+  const copies = !game.pbPool ? [[false, 1]]
+    : powerhit ? [[true, 1], [false, game.pbPool - 1]]
+    : [[powerball === drawnPB, 1]];
+  const won = new Array(game.divisions.length + 1).fill(0);
+  for (let a = 0; a <= Math.min(h, k); a++) for (let b = 0; b <= Math.min(s, k - a); b++) {
+    const c = k - a - b;
+    if (c > rest) continue;
+    const count = choose(h, a) * choose(s, b) * choose(rest, c);
+    for (const [pbHit, mult] of copies) {
+      const d = division(game, a, b, pbHit);
+      if (d) won[d] += count * mult;
+    }
+  }
+  return { mainHits: h, suppHits: s, pbHit: game.pbPool ? (powerhit || powerball === drawnPB) : false, won };
+}

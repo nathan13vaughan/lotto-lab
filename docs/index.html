@@ -29,12 +29,19 @@
   <p class="nextdraw" id="nextDraw" aria-live="polite"></p>
 
   <section class="card" aria-labelledby="h-games">
-    <h2 id="h-games">How many games?</h2>
-    <div class="stepper">
-      <button type="button" class="step" data-step="-1" aria-label="One fewer game">−</button>
-      <output id="count" aria-live="polite">18</output>
-      <button type="button" class="step" data-step="1" aria-label="One more game">+</button>
+    <div class="card-head">
+      <h2 id="h-games">How many games?</h2>
+      <div class="mini-seg" id="modeSeg" role="radiogroup" aria-label="Entry type">
+        <button type="button" role="radio" data-mode="games">Standard</button>
+        <button type="button" role="radio" data-mode="system">System</button>
+      </div>
     </div>
+    <div class="stepper">
+      <button type="button" class="step" data-step="-1" aria-label="Fewer">−</button>
+      <output id="count" aria-live="polite">18</output>
+      <button type="button" class="step" data-step="1" aria-label="More">+</button>
+    </div>
+    <p class="count-note" id="countNote"></p>
     <div class="chips" id="countChips"></div>
   </section>
 

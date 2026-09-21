@@ -18,12 +18,14 @@ There are three ways to pick:
 | **Hot numbers** | Leans towards numbers and pairs that have come up more than expected. |
 | **Quick Pick** | Plain random, the same as the Lott app's Quick Pick. |
 
+You can also pick a **System** entry, like System 8 (every 6-number combination of 8 numbers, which is 28 games), or **PowerHit** for Powerball (every Powerball). The app works out a system's odds exactly and compares it with the same number of spread-out standard games. A system wins the same amount on average, but much less often. For example, a Saturday Lotto System 8 has a 5.9% chance of any prize in a draw, against 55% for 28 spread-out games. When a system does win, several of its games usually win together. PowerHit is the exception: it's nearly as good as spread-out games, at 43% against 44%.
+
 After the draw, the app checks your saved games against the results and shows any winning divisions, with prize amounts. It also shows your chance of each division, the average prize for each, and roughly how much a set of games wins back per draw.
 
 ## What it can and can't do
 
 - **Every game has the same odds of winning Division 1.** For Saturday Lotto that's 1 in 8,145,060, whichever numbers you choose. No strategy changes that.
-- **Coverage raises the chance that at least one of your games wins a prize.** Here's what 18 games gets you for each draw:
+- **Coverage raises the chance that at least one of your games wins a prize.** Here's the chance of at least one prize in a draw:
 
   | Game | 18 Quick Picks | 18 Best coverage | 50 Quick Picks | 50 Best coverage |
   |---|---|---|---|---|
