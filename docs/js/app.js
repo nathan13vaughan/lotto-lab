@@ -328,8 +328,11 @@ function renderStats() {
   $("stats").innerHTML = `
     ${verdictRow(s.tests.numbers_p, "Single numbers")}
     ${verdictRow(s.tests.pairs_p, "Pairs of numbers")}
+    ${s.tests.recent ? verdictRow(Math.min(s.tests.recent.numbers_p, s.tests.recent.pairs_p),
+      `Recent draws only (${s.tests.recent.draws} since ${fmtDate(s.tests.recent.since, { month: "short", year: "numeric" })})`)
+      .replace("Below 0.05 would mean fair balls rarely look this uneven.", "Worn balls would show up here first.") : ""}
     <div class="verdict"><span class="dot ${btWord[0]}"></span><div><b>${btWord[1]}</b><span>Numbers that were hot in earlier draws beat chance in later draws in ${bt.numbers.splits_passed} of ${bt.numbers.splits} tests. Pairs did in ${bt.pairs.splits_passed} of ${bt.pairs.splits}. A worn ball would pass most of them.</span></div></div>
-    <div class="verdict"><span class="dot ok" style="visibility:hidden"></span><div><span>Based on ${s.draws.toLocaleString("en-AU")} draws in the current format (${fmtDate(s.first_date, { month: "short", year: "numeric" })} – ${fmtDate(s.last_date, { day: "numeric", month: "short", year: "numeric" })}), counting ${g.suppLabel || "main numbers"} too since they come out of the same machine.</span></div></div>
+    <div class="verdict"><span class="dot ok" style="visibility:hidden"></span><div><span>Based on ${s.draws.toLocaleString("en-AU")} draws in the current format (${fmtDate(s.first_date, { month: "short", year: "numeric" })} – ${fmtDate(s.last_date, { day: "numeric", month: "short", year: "numeric" })}), ${g.pbPool ? "main numbers only (the Powerball comes from a separate barrel)" : `counting the ${g.suppLabel === "bonus" ? "bonus numbers" : "supplementaries"} too, since they come out of the same machine`}.</span></div></div>
     <div class="hotcold">
       <div><h3>Drawn most</h3><div class="balls">${hot.map(([n]) => `<span class="ball">${n}</span>`).join("")}</div></div>
       <div class="cold"><h3>Drawn least</h3><div class="balls">${cold.map(([n]) => `<span class="ball">${n}</span>`).join("")}</div></div>

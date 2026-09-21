@@ -47,6 +47,20 @@ def game_stats(game) -> dict:
             "mean_excess_z": round(float(np.mean([b.test_z for b in runs])), 2),
         }
 
+    # Recent window: if balls wear, recent draws are where it would show.
+    recent_n = min(len(x), {"tattslotto": 260, "powerball": 260, "setforlife": 730}[game.key])
+    xr = x[-recent_n:]
+    rn = S.number_stats(xr, k, sims=1000)
+    rp = S.pair_stats(xr, k, sims=300)
+    recent = {
+        "draws": int(recent_n),
+        "since": cur["draw_date"].iloc[-recent_n].strftime("%Y-%m-%d"),
+        "numbers_p": round(rn.chi2_p, 3),
+        "pairs_p": round(rp.chi2_p, 3),
+        "numbers_flagged": int((rn.table["q"] < 0.05).sum()),
+        "number_z": _r(rn.table["z"], 2),
+    }
+
     pb_z = []
     if game.pb_pool:
         pbs = pd.Series([p[0] for p in cur["powerball"] if p])
@@ -73,6 +87,7 @@ def game_stats(game) -> dict:
             "pairs_flagged": pairs.n_significant,
             "numbers_flagged": int((nums.table["q"] < 0.05).sum()),
             "backtest": backtests,
+            "recent": recent,
         },
     }
 
