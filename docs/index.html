@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lotto Lab</title>
+<meta name="description" content="Pick lotto games for Saturday Lotto, Powerball and Set for Life, spread for the best chance of a prize.">
+<meta name="theme-color" content="#f7f6f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Lotto Lab">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="var(--accent)"/><circle cx="16" cy="16" r="7" fill="var(--surface)"/><text x="16" y="19.5" text-anchor="middle" font-size="9" font-weight="700" fill="var(--accent)">L</text></svg>
+    <span>Lotto Lab</span>
+  </div>
+  <span class="updated" id="updated"></span>
+</header>
+
+<main>
+  <nav class="seg" id="gameTabs" role="tablist" aria-label="Game"></nav>
+
+  <section class="card" aria-labelledby="h-games">
+    <h2 id="h-games">How many games?</h2>
+    <div class="stepper">
+      <button type="button" class="step" data-step="-1" aria-label="One fewer game">−</button>
+      <output id="count" aria-live="polite">18</output>
+      <button type="button" class="step" data-step="1" aria-label="One more game">+</button>
+    </div>
+    <div class="chips" id="countChips"></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-how">
+    <h2 id="h-how">How should I pick them?</h2>
+    <div class="chips" id="strategyChips" role="radiogroup" aria-label="Strategy"></div>
+    <p class="blurb" id="strategyBlurb"></p>
+  </section>
+
+  <button type="button" class="go" id="generate">Pick my numbers</button>
+
+  <section id="results" hidden>
+    <div class="card summary" id="summary"></div>
+    <div class="actions">
+      <button type="button" id="copyBtn">Copy</button>
+      <button type="button" id="shareBtn">Share</button>
+      <button type="button" id="clearEntered">Reset ticks</button>
+    </div>
+    <p class="hint">Tap a game once you've entered it in the Lott app, to tick it off.</p>
+    <ol class="lines" id="lines"></ol>
+  </section>
+
+  <section class="card" id="checkCard" aria-labelledby="h-check">
+    <h2 id="h-check">Latest draw</h2>
+    <div id="latest"></div>
+    <div id="checkResult"></div>
+  </section>
+
+  <details class="card" id="statsCard">
+    <summary><h2>Are the balls biased?</h2></summary>
+    <div id="stats"></div>
+  </details>
+
+  <details class="card">
+    <summary><h2>Settings</h2></summary>
+    <label class="field">Price per game ($)
+      <input id="price" type="number" inputmode="decimal" min="0" step="0.05" placeholder="e.g. 1.50">
+    </label>
+    <p class="blurb">Used only to show the ticket cost. Check the Lott app for the current price.</p>
+    <label class="field">Trust in the stats (Hot numbers only)
+      <input id="trust" type="range" min="0" max="1" step="0.05" value="0.3">
+    </label>
+  </details>
+
+  <footer>
+    <p>Every game has the same chance of winning Division 1. Spreading your games raises the chance that <em>at least one</em> wins a prize, but not the average amount you'll win. Lotteries return less than they take in, so play for fun with money you can afford to lose.</p>
+    <p>Gambling Help: <a href="tel:1800858858">1800 858 858</a> · <a href="https://www.gamblinghelponline.org.au" rel="noopener">gamblinghelponline.org.au</a></p>
+    <p class="small">Not affiliated with The Lott. Results data from public archives. Check the official results before claiming a prize.</p>
+  </footer>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

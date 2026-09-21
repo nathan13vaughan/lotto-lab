@@ -1,0 +1,64 @@
+# Lotto Lab
+
+Picks games for **Saturday Lotto, Powerball and Set for Life**, and tests the full draw history for signs of worn or biased balls.
+
+**Phone app:** https://nathan13vaughan.github.io/lotto-lab/. On iPhone, open it in Safari and tap Share → Add to Home Screen. On Android, open it in Chrome and choose Install app.
+
+## What the app does
+
+1. Choose a game and how many games to play (1–50).
+2. Tap **Pick my numbers**.
+3. Enter the games in the Lott app, ticking each one off as you go.
+
+There are three ways to pick:
+
+| Strategy | What it does |
+|---|---|
+| **Best coverage** (default) | Spreads numbers so your games share as few numbers as possible, and avoids patterns lots of people play, like birthdays and runs. |
+| **Hot numbers** | Leans towards numbers and pairs that have come up more than expected. |
+| **Quick Pick** | Plain random, the same as the Lott app's Quick Pick. |
+
+After the draw, the app checks your saved games against the results and shows any winning divisions.
+
+## What it can and can't do
+
+- **Every game has the same odds of winning Division 1.** For Saturday Lotto that's 1 in 8,145,060, whichever numbers you choose. No strategy changes that.
+- **Coverage raises the chance that at least one of your games wins a prize.** Here's what 18 games gets you for each draw:
+
+  | Game | 18 Quick Picks | 18 Best coverage games |
+  |---|---|---|
+  | Saturday Lotto | 35.2% | 38.9% |
+  | Powerball | 33.9% | 40.3% |
+  | Set for Life | 30.5% | 33.3% |
+
+  The average number of prizes stays the same. Coverage means more draws where you win something, but you win several prizes in one draw less often.
+- **Avoiding popular numbers doesn't change your odds.** If you do win, fewer people share the prize with you.
+- **The bias tests have found no reliable worn balls so far.** Saturday Lotto and Powerball look fair. Set for Life has a weak hint that some numbers stay hot, but it isn't statistically significant. The app's "Are the balls biased?" panel shows the latest results.
+
+Gambling Help: 1800 858 858 · [gamblinghelponline.org.au](https://www.gamblinghelponline.org.au)
+
+## How it works
+
+| Path | What it is |
+|---|---|
+| `data/draws/*.csv` | Every draw since 1986 (Saturday Lotto), 1996 (Powerball) and 2015 (Set for Life). |
+| `lottery/fetch.py` | Downloads new draws from thelott.com's results API, or the australia.national-lottery.com archive if the official site refuses the request. |
+| `lottery/stats.py` | The bias tests. Frequencies are compared with simulated fair draws, with false-discovery correction for testing all 990+ pairs, and a backtest checks whether hot numbers stay hot in later draws. |
+| `lottery/export.py` | Writes `docs/data/stats.json` for the phone app. |
+| `docs/` | The phone app, static and hosted on GitHub Pages. `docs/js/engine.js` does the line picking and the exact prize odds. |
+| `app.py` | A Streamlit dashboard for deeper analysis on a PC. |
+
+A GitHub Action (`.github/workflows/update.yml`) downloads new draws twice a day and republishes the stats.
+
+### Run locally
+
+```bash
+python -m venv .venv
+.venv\Scripts\pip install -r requirements-dashboard.txt
+.venv\Scripts\python -m lottery.fetch      # get new draws
+.venv\Scripts\python -m lottery.export     # rebuild stats for the phone app
+.venv\Scripts\streamlit run app.py         # analysis dashboard
+node --test tests/engine.test.mjs          # engine tests
+```
+
+This project is not affiliated with The Lott or Tabcorp. Check official results before claiming a prize.

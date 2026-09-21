@@ -1,0 +1,42 @@
+name: Update results
+
+on:
+  schedule:
+    # Draws are around 8:30pm Melbourne time. Run late that night and again early morning.
+    - cron: "15 12 * * *"   # 10:15pm AEST / 11:15pm AEDT
+    - cron: "30 19 * * *"   # 5:30am AEST / 6:30am AEDT
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-results
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Download new draws
+        run: python -m lottery.fetch
+      - name: Recompute stats
+        run: python -m lottery.export
+      - name: Commit if anything changed
+        run: |
+          if git diff --quiet -- data/draws; then
+            echo "No new draws."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/draws docs/data/stats.json
+          git commit -m "Update results $(date -u +%Y-%m-%d)"
+          git push
