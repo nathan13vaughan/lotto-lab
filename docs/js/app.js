@@ -1,6 +1,6 @@
 import {
   GAMES, STRATEGIES, generate, evaluate, lineOdds, randomSetChance, checkLines,
-  systemOdds, systemGames, pickSystem, checkSystem,
+  systemOdds, systemGames, pickSystem, checkSystem, linePairs,
 } from "./engine.js";
 
 const $ = (id) => document.getElementById(id);
@@ -25,7 +25,7 @@ function save() {
 
 const game = () => GAMES[state.game];
 const count = () => state.counts[state.game] ?? 18;
-const strategy = () => state.strategy[state.game] ?? "spread";
+const strategy = () => state.strategy[state.game] ?? "pairs";
 const isSystem = () => state.mode[state.game] === "system";
 const powerhit = () => !!game().pbPool && !!state.powerhit[state.game];
 const sysMin = () => (powerhit() ? game().pick : game().pick + 1);
@@ -34,6 +34,7 @@ const sysSize = () => Math.max(sysMin(), Math.min(20, state.sys[state.game] ?? g
 // In System mode the strategies mean something slightly different: a system
 // covers every combination of its numbers, so there's nothing to spread.
 const SYSTEM_STRATEGY = {
+  pairs: { label: "Frequent pairs", blurb: "Picks numbers that have often come out together, so the system is full of frequent pairs. Also avoids popular patterns." },
   spread: { label: "Least popular", blurb: "Picks numbers other players are less likely to choose (fewer birthdays, runs and patterns), so any prize is shared with fewer people." },
   hot: { label: "Hot numbers", blurb: "Leans towards numbers that have come up more often. The backtests don't show this working." },
   random: { label: "Random", blurb: "Plain random numbers, like a Quick Pick system." },
@@ -135,6 +136,7 @@ function renderControls() {
   $("strategyChips").innerHTML = Object.keys(STRATEGIES).map((k) =>
     `<button type="button" role="radio" data-strategy="${k}" aria-checked="${k === strategy()}">${strategyInfo(k).label}</button>`).join("");
   $("strategyBlurb").textContent = strategyInfo(strategy()).blurb;
+  $("leanField").hidden = !["pairs", "hot"].includes(strategy());
   $("price").value = state.price[state.game] ?? "";
   $("trust").value = state.trust;
 }
@@ -208,9 +210,15 @@ function renderResults() {
     ${price > 0 ? `<div class="row"><span>Ticket cost (${n} × ${money(price)})</span><span>${money(n * price)}</span></div>` : ""}
     ${prizeBreakdown(g, set)}
     <div class="row"><span>Picked</span><span>${new Date(set.createdAt).toLocaleString("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })} · ${STRATEGIES[set.strategy].label}</span></div>`;
+  const s = stats?.games[g.key];
+  const caption = (l) => {
+    if (set.strategy !== "pairs" || !s?.pair_count) return "";
+    const top = linePairs(g, l.numbers, s).slice(0, 2).filter((x) => x.z > 0);
+    return top.length ? `<div class="pairnote">${top.map((x) => `<b>${x.a} & ${x.b}</b> together ${x.count}× (usual ${Math.round(x.expected)})`).join(" · ")}</div>` : "";
+  };
   $("lines").innerHTML = set.lines.map((l, i) =>
     `<li data-i="${i}" class="${set.entered?.[i] ? "done" : ""}" aria-pressed="${!!set.entered?.[i]}">
-       <span class="idx">${i + 1}</span>${ballsHTML(l, g)}<span class="tick" aria-hidden="true"></span></li>`).join("");
+       <span class="idx">${i + 1}</span><div class="linebody">${ballsHTML(l, g)}${caption(l)}</div><span class="tick" aria-hidden="true"></span></li>`).join("");
 }
 
 function renderSystemResults(g, set) {
@@ -315,6 +323,17 @@ function verdictRow(p, title) {
   return `<div class="verdict"><span class="dot ${cls}"></span><div><b>${title}: ${word}</b><span>p = ${p.toFixed(3)}. Below 0.05 would mean fair balls rarely look this uneven.</span></div></div>`;
 }
 
+function topPairsHTML(g, s) {
+  if (!s.pair_count) return "";
+  const idx = [];
+  let k = 0;
+  for (let a = 1; a <= g.pool; a++) for (let b = a + 1; b <= g.pool; b++, k++) idx.push([a, b, s.pair_count[k], s.pair_z[k]]);
+  const top = idx.sort((x, y) => y[3] - x[3]).slice(0, 8);
+  return `<div class="toppairs"><h3>Most often drawn together</h3>
+    ${top.map(([a, b, c]) => `<div class="tp"><span class="ball">${a}</span><span class="ball">${b}</span><span>${c} times <small>(usual ${Math.round(s.pair_expected)})</small></span></div>`).join("")}
+    <p>Usual = how often a pair comes up together by chance over these draws. None of these are unusual enough to count as significant once you allow for testing all ${idx.length.toLocaleString("en-AU")} pairs.</p></div>`;
+}
+
 function renderStats() {
   const g = game();
   const s = stats?.games[g.key];
@@ -333,6 +352,7 @@ function renderStats() {
       .replace("Below 0.05 would mean fair balls rarely look this uneven.", "Worn balls would show up here first.") : ""}
     <div class="verdict"><span class="dot ${btWord[0]}"></span><div><b>${btWord[1]}</b><span>Numbers that were hot in earlier draws beat chance in later draws in ${bt.numbers.splits_passed} of ${bt.numbers.splits} tests. Pairs did in ${bt.pairs.splits_passed} of ${bt.pairs.splits}. A worn ball would pass most of them.</span></div></div>
     <div class="verdict"><span class="dot ok" style="visibility:hidden"></span><div><span>Based on ${s.draws.toLocaleString("en-AU")} draws in the current format (${fmtDate(s.first_date, { month: "short", year: "numeric" })} – ${fmtDate(s.last_date, { day: "numeric", month: "short", year: "numeric" })}), ${g.pbPool ? "main numbers only (the Powerball comes from a separate barrel)" : `counting the ${g.suppLabel === "bonus" ? "bonus numbers" : "supplementaries"} too, since they come out of the same machine`}.</span></div></div>
+    ${topPairsHTML(g, s)}
     <div class="hotcold">
       <div><h3>Drawn most</h3><div class="balls">${hot.map(([n]) => `<span class="ball">${n}</span>`).join("")}</div></div>
       <div class="cold"><h3>Drawn least</h3><div class="balls">${cold.map(([n]) => `<span class="ball">${n}</span>`).join("")}</div></div>

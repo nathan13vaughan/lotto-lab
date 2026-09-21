@@ -218,3 +218,16 @@ button:focus-visible, summary:focus-visible, input:focus-visible { outline: 2px 
 .pill { display: inline-block; background: var(--pb); color: #fff; border-radius: 999px; padding: 4px 10px; font-size: .8rem; font-weight: 700; }
 .note { font-size: .85rem; color: var(--ink-2); padding: 8px 0; border-top: 1px solid var(--line); margin: 0; }
 .checklist .l.system .balls { flex-wrap: wrap; row-gap: 5px; }
+.linebody { flex: 1; min-width: 0; }
+.pairnote { font-size: .75rem; color: var(--ink-2); margin-top: 5px; line-height: 1.3; }
+.pairnote b { color: var(--ink); font-weight: 650; }
+.lean { margin-top: 14px; }
+.lean[hidden] { display: none; }
+.lean-scale { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); margin-top: 2px; }
+.toppairs { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+.toppairs h3 { font-size: .8rem; color: var(--ink-2); margin: 0 0 8px; font-weight: 600; }
+.toppairs .tp { display: flex; align-items: center; gap: 5px; margin: 5px 0; font-size: .88rem; }
+.toppairs .tp .ball { width: 28px; height: 28px; font-size: .8rem; }
+.toppairs .tp span:last-child { margin-left: 8px; font-variant-numeric: tabular-nums; }
+.toppairs small { color: var(--muted); }
+.toppairs p { font-size: .78rem; color: var(--ink-2); margin: 8px 0 0; }

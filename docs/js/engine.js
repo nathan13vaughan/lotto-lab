@@ -121,6 +121,8 @@ export function popularity(line, game, lastDraw = []) {
 // ------------------------------------------------------------------ generator
 
 export const STRATEGIES = {
+  pairs:   { label: "Frequent pairs", spread: 0.35, pop: 0.3, bias: 1.0, numberWeight: 0, pairWeight: 1.0,
+             blurb: "Builds each game around pairs of numbers that have come out together more often than chance. Also keeps games reasonably spread. The backtests haven't shown frequent pairs staying frequent, so treat this as testing the idea." },
   spread:  { label: "Best coverage", spread: 1.0, pop: 1.0, bias: 0.0,
              blurb: "Spreads numbers so your games overlap as little as possible, which gives the best chance that at least one game wins a prize. Also avoids number patterns that lots of other people pick." },
   hot:     { label: "Hot numbers", spread: 0.6, pop: 0.6, bias: 1.0,
@@ -208,12 +210,13 @@ export function generate(game, n, opts = {}) {
     for (let a = 1; a <= pool; a++)
       for (let b = a + 1; b <= pool; b++, idx++) pz[a * (pool + 1) + b] = pz[b * (pool + 1) + a] = pairs[idx] * trust;
   }
+  const wNum = st.numberWeight ?? 1, wPair = st.pairWeight ?? 1 / (pick - 1);
   const lineBias = (l) => {
     if (!st.bias) return 0;
     let s = 0;
     for (let i = 0; i < l.length; i++) {
-      s += nz[l[i]];
-      for (let j = i + 1; j < l.length; j++) s += pz[l[i] * (pool + 1) + l[j]] / (pick - 1);
+      s += wNum * nz[l[i]];
+      for (let j = i + 1; j < l.length; j++) s += wPair * pz[l[i] * (pool + 1) + l[j]];
     }
     return s;
   };
@@ -410,6 +413,7 @@ export function pickSystem(game, m, opts = {}) {
     const c = sample(game.pool, m, rand);
     let score = popularity(c, game, opts.lastDraw || []);
     if (st === "hot" && nz) score -= c.reduce((acc, v) => acc + nz[v - 1] * trust, 0);
+    if (st === "pairs" && opts.stats?.pair_z) score -= linePairs(game, c, opts.stats).reduce((acc, x) => acc + x.z, 0) * trust * 4 / (m - 1);
     if (score < bestScore) { bestScore = score; best = c; }
   }
   return best.sort((a, b) => a - b);
@@ -437,4 +441,17 @@ export function checkSystem(game, numbers, draw, { powerhit = false, powerball =
     }
   }
   return { mainHits: h, suppHits: s, pbHit: game.pbPool ? (powerhit || powerball === drawnPB) : false, won };
+}
+
+/** Pairs within a line ranked by how much more often they've been drawn together than chance. */
+export function linePairs(game, numbers, stats) {
+  if (!stats?.pair_z) return [];
+  const idx = (a, b) => (a - 1) * game.pool - ((a - 1) * a) / 2 + (b - a - 1); // upper-triangle index, a<b
+  const out = [];
+  for (let i = 0; i < numbers.length; i++) for (let j = i + 1; j < numbers.length; j++) {
+    const [a, b] = numbers[i] < numbers[j] ? [numbers[i], numbers[j]] : [numbers[j], numbers[i]];
+    const k = idx(a, b);
+    out.push({ a, b, z: stats.pair_z[k], count: stats.pair_count?.[k], expected: stats.pair_expected });
+  }
+  return out.sort((x, y) => y.z - x.z);
 }

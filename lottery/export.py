@@ -80,6 +80,8 @@ def game_stats(game) -> dict:
         "number_expected": round(float(nums.table["expected"].iloc[0]), 2),
         "number_z": _r(nums.table["z"], 2),
         "pair_z": _r(pairs.table["z"], 2),
+        "pair_count": [int(v) for v in pairs.table["count"]],
+        "pair_expected": round(float(pairs.table["expected"].iloc[0]), 2),
         "pb_z": pb_z,
         "tests": {
             "numbers_p": round(nums.chi2_p, 3),

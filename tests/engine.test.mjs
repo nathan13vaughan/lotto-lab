@@ -38,7 +38,7 @@ test("division rules", () => {
 });
 
 test("lines are valid for every game and strategy", () => {
-  for (const g of Object.values(GAMES)) for (const strategy of ["spread", "hot", "random"]) {
+  for (const g of Object.values(GAMES)) for (const strategy of ["pairs", "spread", "hot", "random"]) {
     const stats = { number_z: Array(g.pool).fill(0).map((_, i) => (i % 5) - 2),
                     pair_z: Array(g.pool * (g.pool - 1) / 2).fill(0.1), pb_z: Array(20).fill(0) };
     const lines = generate(g, 18, { strategy, stats, rand: mulberry32(1) });
@@ -110,4 +110,23 @@ test("checkSystem counts winning games like checking every expanded game", () =>
   const brute = new Array(7).fill(0);
   checkLines(g, combos(nums, 6).map((c) => ({ numbers: c })), draw).forEach((x) => x.division && brute[x.division]++);
   assert.deepEqual(r.won, brute);
+});
+
+import { linePairs } from "../docs/js/engine.js";
+
+test("Frequent pairs strategy builds games around the most frequent pairs", () => {
+  const g = GAMES.tattslotto;
+  const nPairs = g.pool * (g.pool - 1) / 2;
+  const rand = mulberry32(11);
+  const stats = { number_z: Array(g.pool).fill(0), pair_z: Array.from({ length: nPairs }, () => (rand() - 0.5) * 4) };
+  const avgZ = (lines) => { const all = lines.flatMap((l) => linePairs(g, l.numbers, stats)); return all.reduce((a, x) => a + x.z, 0) / all.length; };
+  const pairsLines = generate(g, 18, { strategy: "pairs", stats, rand: mulberry32(1) });
+  const spreadLines = generate(g, 18, { strategy: "spread", stats, rand: mulberry32(1) });
+  assert.ok(avgZ(pairsLines) > avgZ(spreadLines) + 0.5, `${avgZ(pairsLines)} vs ${avgZ(spreadLines)}`);
+  // linePairs indexing agrees with the upper-triangle layout
+  let k = 0, ok = true;
+  for (let a = 1; a <= g.pool; a++) for (let b = a + 1; b <= g.pool; b++, k++) {
+    if (linePairs(g, [b, a], stats)[0].z !== stats.pair_z[k]) ok = false;
+  }
+  assert.ok(ok);
 });

@@ -49,6 +49,10 @@
     <h2 id="h-how">How should I pick them?</h2>
     <div class="chips" id="strategyChips" role="radiogroup" aria-label="Strategy"></div>
     <p class="blurb" id="strategyBlurb"></p>
+    <label class="field lean" id="leanField">How hard to lean on the stats
+      <input id="trust" type="range" min="0.1" max="1" step="0.05" value="0.3">
+      <span class="lean-scale"><span>Gentle</span><span>Strong</span></span>
+    </label>
   </section>
 
   <button type="button" class="go" id="generate">Pick my numbers</button>
@@ -81,9 +85,6 @@
       <input id="price" type="number" inputmode="decimal" min="0" step="0.05" placeholder="e.g. 1.50">
     </label>
     <p class="blurb">Used only to show the ticket cost. Check the Lott app for the current price.</p>
-    <label class="field">Trust in the stats (Hot numbers only)
-      <input id="trust" type="range" min="0" max="1" step="0.05" value="0.3">
-    </label>
   </details>
 
   <footer>
