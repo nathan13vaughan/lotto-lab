@@ -240,11 +240,19 @@ def main(argv=None):
             LW_OUT.write_text(json.dumps(lw, indent=1))
         except Exception as e:  # noqa: BLE001 - any failure just means we use the other sources
             print(f"Lotterywest unavailable ({e}); using other sources", flush=True)
+    failed = []
     for g in a.games:
-        update(g, a.full, a.source, lw)
+        try:
+            update(g, a.full, a.source, lw)
+        except Exception as e:  # noqa: BLE001 - keep going so the other games still update
+            print(f"    {g} failed: {e}", flush=True)
+            failed.append(g)
     db.write_csv()
     print()
     print(db.summary().to_string(index=False))
+    if failed:
+        print(f"\nFailed: {', '.join(failed)}")
+        return 1 if len(failed) == len(a.games) else 0
 
 
 if __name__ == "__main__":

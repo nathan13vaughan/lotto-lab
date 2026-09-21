@@ -249,37 +249,11 @@ with tabs[3]:
 # ------------------------------------------------------------------ tickets
 with tabs[4]:
     st.subheader("Ticket picker")
-    st.markdown("Scores many random tickets and keeps the best. The score mixes two things:\n"
-                "- **Bias score:** favours numbers and pairs that have come up more often. Only useful if the "
-                "Backtest tab shows the bias is real.\n"
-                "- **Popularity penalty:** avoids combinations lots of other players pick (birthdays 1–31, runs, "
-                "patterns). It doesn't change your odds, but if you win you share the prize with fewer people.")
-    c1, c2, c3, c4 = st.columns(4)
-    n_t = c1.number_input("Tickets", 1, 50, 10)
-    bw = c2.slider("Bias weight", 0.0, 2.0, 1.0, 0.1)
-    pw = c3.slider("Popularity weight", 0.0, 2.0, 1.0, 0.1)
-    shrink = c4.slider("Trust in the stats", 0.0, 1.0, 0.3, 0.05,
-                       help="Scales the z-scores down. Most of what looks like bias is noise, so a low value is "
-                            "the sensible default.")
-    settings = (game.key, key, int(n_t), bw, pw, shrink)
-    if st.button("Generate tickets", type="primary") or st.session_state.get("ticket_settings") != settings:
-        st.session_state.ticket_settings = settings
-        st.session_state.tickets = S.pick_tickets(nums.table, pairs.table, game.pool, game.main, int(n_t),
-                                                  bw, pw, shrink)
-    tk = st.session_state.tickets
-    if game.pb_pool:
-        pbs = [p[0] for p in sel["powerball"] if p]
-        if pbs:
-            pc = pd.Series(pbs).value_counts().reindex(range(1, game.pb_pool + 1), fill_value=0)
-            exp_pb = len(pbs) / game.pb_pool
-            z_pb = (pc - exp_pb) / np.sqrt(exp_pb * (1 - 1 / game.pb_pool))
-            order = (bw * shrink * z_pb + np.random.default_rng().normal(0, 1, len(z_pb))).sort_values(ascending=False)
-            tk = tk.copy()
-            tk.insert(1, "powerball", [int(order.index[i % len(order)]) for i in range(len(tk))])
-    st.dataframe(tk, hide_index=True, width="stretch")
-    odds = {"tattslotto": "8,145,060", "powerball": "134,490,400", "setforlife": "38,320,568"}[game.key]
-    st.caption(f"Every ticket, including these, has the same 1 in {odds} chance of winning division 1 "
-               "unless the machine is genuinely biased.")
+    st.markdown(
+        "Picking now lives in the phone app: **https://nathan13vaughan.github.io/lotto-lab/**\n\n"
+        "It picks any number of games (or a System / PowerHit), spreads them for the best chance of a prize, "
+        "shows the exact odds, and checks your games after the draw.")
+    st.link_button("Open the phone app", "https://nathan13vaughan.github.io/lotto-lab/", type="primary")
 
 # ------------------------------------------------------------------ data
 with tabs[5]:
