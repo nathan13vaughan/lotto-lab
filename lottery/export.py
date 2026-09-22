@@ -36,10 +36,11 @@ def game_stats(game) -> dict:
     x = S.incidence([m + s for m, s in zip(cur["main"], cur["supp"])], game.pool)
     nums = S.number_stats(x, k, sims=1000)
     pairs = S.pair_stats(x, k, sims=500)
+    triples = S.triple_stats(x, k, sims=200)
 
     backtests = {}
-    for kind, top in (("numbers", 5), ("pairs", 20)):
-        runs = [S.backtest(x[: int(len(x) * s)], x[int(len(x) * s):], k, kind, top, sims=200)
+    for kind, top in (("numbers", 5), ("pairs", 20), ("triples", 30)):
+        runs = [S.backtest(x[: int(len(x) * s)], x[int(len(x) * s):], k, kind, top, sims=100 if kind == "triples" else 200)
                 for s in np.arange(0.3, 0.91, 0.1)]
         backtests[kind] = {
             "splits_passed": int(sum(b.test_z > 1.96 for b in runs)),
@@ -82,11 +83,15 @@ def game_stats(game) -> dict:
         "pair_z": _r(pairs.table["z"], 2),
         "pair_count": [int(v) for v in pairs.table["count"]],
         "pair_expected": round(float(pairs.table["expected"].iloc[0]), 2),
+        "triple_count": [int(v) for v in triples.counts],   # lexicographic a<b<c
+        "triple_expected": round(triples.expected, 3),
         "pb_z": pb_z,
         "tests": {
             "numbers_p": round(nums.chi2_p, 3),
             "pairs_p": round(pairs.chi2_p, 3),
             "pairs_flagged": pairs.n_significant,
+            "triples_p": round(triples.chi2_p, 3),
+            "triples_flagged": triples.n_significant,
             "numbers_flagged": int((nums.table["q"] < 0.05).sum()),
             "backtest": backtests,
             "recent": recent,

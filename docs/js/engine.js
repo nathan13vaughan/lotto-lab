@@ -121,8 +121,8 @@ export function popularity(line, game, lastDraw = []) {
 // ------------------------------------------------------------------ generator
 
 export const STRATEGIES = {
-  pairs:   { label: "Frequent pairs", spread: 0.35, pop: 0.3, bias: 1.0, numberWeight: 0, pairWeight: 1.0,
-             blurb: "Builds each game around pairs of numbers that have come out together more often than chance. Also keeps games reasonably spread. The backtests haven't shown frequent pairs staying frequent, so treat this as testing the idea." },
+  pairs:   { label: "Pairs & triples", spread: 0.35, pop: 0.3, bias: 1.0, numberWeight: 0, pairWeight: 1.0, tripleWeight: 0.5,
+             blurb: "Builds each game around pairs and groups of three numbers that have come out together more often than chance. Also keeps games reasonably spread. The backtests haven't shown frequent pairs or triples staying frequent, so treat this as testing the idea." },
   spread:  { label: "Best coverage", spread: 1.0, pop: 1.0, bias: 0.0,
              blurb: "Spreads numbers so your games overlap as little as possible, which gives the best chance that at least one game wins a prize. Also avoids number patterns that lots of other people pick." },
   hot:     { label: "Hot numbers", spread: 0.6, pop: 0.6, bias: 1.0,
@@ -210,13 +210,18 @@ export function generate(game, n, opts = {}) {
     for (let a = 1; a <= pool; a++)
       for (let b = a + 1; b <= pool; b++, idx++) pz[a * (pool + 1) + b] = pz[b * (pool + 1) + a] = pairs[idx] * trust;
   }
-  const wNum = st.numberWeight ?? 1, wPair = st.pairWeight ?? 1 / (pick - 1);
+  const wNum = st.numberWeight ?? 1, wPair = st.pairWeight ?? 1 / (pick - 1), wTri = st.tripleWeight ?? 0;
+  const tz = wTri && stats && st.bias ? tripleZ(game, stats, trust) : null;
+  const P1 = pool + 1;
   const lineBias = (l) => {
     if (!st.bias) return 0;
     let s = 0;
     for (let i = 0; i < l.length; i++) {
       s += wNum * nz[l[i]];
-      for (let j = i + 1; j < l.length; j++) s += wPair * pz[l[i] * (pool + 1) + l[j]];
+      for (let j = i + 1; j < l.length; j++) {
+        s += wPair * pz[l[i] * P1 + l[j]];
+        if (tz) for (let m = j + 1; m < l.length; m++) s += wTri * tz[(l[i] * P1 + l[j]) * P1 + l[m]];
+      }
     }
     return s;
   };
@@ -413,7 +418,10 @@ export function pickSystem(game, m, opts = {}) {
     const c = sample(game.pool, m, rand);
     let score = popularity(c, game, opts.lastDraw || []);
     if (st === "hot" && nz) score -= c.reduce((acc, v) => acc + nz[v - 1] * trust, 0);
-    if (st === "pairs" && opts.stats?.pair_z) score -= linePairs(game, c, opts.stats).reduce((acc, x) => acc + x.z, 0) * trust * 4 / (m - 1);
+    if (st === "pairs" && opts.stats?.pair_z) {
+      score -= linePairs(game, c, opts.stats).reduce((acc, x) => acc + x.z, 0) * trust * 4 / (m - 1);
+      score -= lineTriples(game, c, opts.stats).reduce((acc, x) => acc + x.z, 0) * trust * 4 / ((m - 1) * (m - 2) / 2);
+    }
     if (score < bestScore) { bestScore = score; best = c; }
   }
   return best.sort((a, b) => a - b);
@@ -452,6 +460,46 @@ export function linePairs(game, numbers, stats) {
     const [a, b] = numbers[i] < numbers[j] ? [numbers[i], numbers[j]] : [numbers[j], numbers[i]];
     const k = idx(a, b);
     out.push({ a, b, z: stats.pair_z[k], count: stats.pair_count?.[k], expected: stats.pair_expected });
+  }
+  return out.sort((x, y) => y.z - x.z);
+}
+
+const tripleCache = new WeakMap();
+/**
+ * Symmetric lookup [a][b][c] (flattened, size (pool+1)^3) of each triple's z-score:
+ * how far above or below chance those three numbers have come out in the same draw.
+ */
+function tripleTable(game, stats) {
+  if (tripleCache.has(stats)) return tripleCache.get(stats);
+  const P1 = game.pool + 1, e = stats.triple_expected, n = stats.draws || 1;
+  const sd = Math.sqrt(e * (1 - e / n));
+  const t = new Float32Array(P1 * P1 * P1), cnt = new Int32Array(P1 * P1 * P1);
+  let k = 0;
+  for (let a = 1; a <= game.pool; a++) for (let b = a + 1; b <= game.pool; b++) for (let c = b + 1; c <= game.pool; c++, k++) {
+    const z = (stats.triple_count[k] - e) / sd, v = stats.triple_count[k];
+    for (const [x, y, w] of [[a, b, c], [a, c, b], [b, a, c], [b, c, a], [c, a, b], [c, b, a]]) {
+      t[(x * P1 + y) * P1 + w] = z; cnt[(x * P1 + y) * P1 + w] = v;
+    }
+  }
+  const out = { z: t, count: cnt };
+  tripleCache.set(stats, out);
+  return out;
+}
+
+function tripleZ(game, stats, trust) {
+  if (!stats?.triple_count) return null;
+  const { z } = tripleTable(game, stats);
+  return trust === 1 ? z : z.map((v) => v * trust);
+}
+
+/** Triples within a line ranked by how much more often they've come out together than chance. */
+export function lineTriples(game, numbers, stats) {
+  if (!stats?.triple_count) return [];
+  const { z, count } = tripleTable(game, stats);
+  const P1 = game.pool + 1, s = [...numbers].sort((x, y) => x - y), out = [];
+  for (let i = 0; i < s.length; i++) for (let j = i + 1; j < s.length; j++) for (let m = j + 1; m < s.length; m++) {
+    const k = (s[i] * P1 + s[j]) * P1 + s[m];
+    out.push({ nums: [s[i], s[j], s[m]], z: z[k], count: count[k], expected: stats.triple_expected });
   }
   return out.sort((x, y) => y.z - x.z);
 }

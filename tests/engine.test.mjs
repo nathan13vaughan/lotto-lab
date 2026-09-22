@@ -130,3 +130,29 @@ test("Frequent pairs strategy builds games around the most frequent pairs", () =
   }
   assert.ok(ok);
 });
+
+import { lineTriples } from "../docs/js/engine.js";
+
+test("lineTriples reads the right count for every triple, in any order", () => {
+  const g = { pool: 12 };
+  const n = 12 * 11 * 10 / 6;
+  const stats = { triple_count: Array.from({ length: n }, (_, i) => i), triple_expected: 5, draws: 100 };
+  let k = 0, ok = true;
+  for (let a = 1; a <= 12; a++) for (let b = a + 1; b <= 12; b++) for (let c = b + 1; c <= 12; c++, k++) {
+    const t = lineTriples(g, [c, a, b], stats);
+    if (t.length !== 1 || t[0].count !== k || t[0].nums.join() !== [a, b, c].join()) ok = false;
+  }
+  assert.ok(ok);
+});
+
+test("Pairs & triples strategy favours frequent triples", () => {
+  const g = GAMES.setforlife;
+  const nT = g.pool * (g.pool - 1) * (g.pool - 2) / 6, nP = g.pool * (g.pool - 1) / 2;
+  const rand = mulberry32(21);
+  const stats = { number_z: Array(g.pool).fill(0), pair_z: Array(nP).fill(0), draws: 2000, triple_expected: 15,
+                  triple_count: Array.from({ length: nT }, () => Math.round(15 + (rand() - 0.5) * 16)) };
+  const avg = (lines) => { const all = lines.flatMap((l) => lineTriples(g, l.numbers, stats)); return all.reduce((a, x) => a + x.z, 0) / all.length; };
+  const a = avg(generate(g, 18, { strategy: "pairs", stats, rand: mulberry32(1) }));
+  const b = avg(generate(g, 18, { strategy: "spread", stats, rand: mulberry32(1) }));
+  assert.ok(a > b + 0.3, `${a} vs ${b}`);
+});

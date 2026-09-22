@@ -1,6 +1,6 @@
 import {
   GAMES, STRATEGIES, generate, evaluate, lineOdds, randomSetChance, checkLines,
-  systemOdds, systemGames, pickSystem, checkSystem, linePairs,
+  systemOdds, systemGames, pickSystem, checkSystem, linePairs, lineTriples,
 } from "./engine.js";
 
 const $ = (id) => document.getElementById(id);
@@ -34,7 +34,7 @@ const sysSize = () => Math.max(sysMin(), Math.min(20, state.sys[state.game] ?? g
 // In System mode the strategies mean something slightly different: a system
 // covers every combination of its numbers, so there's nothing to spread.
 const SYSTEM_STRATEGY = {
-  pairs: { label: "Frequent pairs", blurb: "Picks numbers that have often come out together, so the system is full of frequent pairs. Also avoids popular patterns." },
+  pairs: { label: "Pairs & triples", blurb: "Picks numbers that have often come out together in pairs and threes, so the system is full of frequent groups. Also avoids popular patterns." },
   spread: { label: "Least popular", blurb: "Picks numbers other players are less likely to choose (fewer birthdays, runs and patterns), so any prize is shared with fewer people." },
   hot: { label: "Hot numbers", blurb: "Leans towards numbers that have come up more often. The backtests don't show this working." },
   random: { label: "Random", blurb: "Plain random numbers, like a Quick Pick system." },
@@ -213,8 +213,12 @@ function renderResults() {
   const s = stats?.games[g.key];
   const caption = (l) => {
     if (set.strategy !== "pairs" || !s?.pair_count) return "";
-    const top = linePairs(g, l.numbers, s).slice(0, 2).filter((x) => x.z > 0);
-    return top.length ? `<div class="pairnote">${top.map((x) => `<b>${x.a} & ${x.b}</b> together ${x.count}× (usual ${Math.round(x.expected)})`).join(" · ")}</div>` : "";
+    const tri = lineTriples(g, l.numbers, s)[0];
+    const pair = linePairs(g, l.numbers, s)[0];
+    const bits = [];
+    if (tri && tri.z > 0) bits.push(`<b>${tri.nums.join(", ")}</b> together ${tri.count}× (usual ${fmtUsual(tri.expected)})`);
+    if (pair && pair.z > 0) bits.push(`<b>${pair.a} & ${pair.b}</b> ${pair.count}× (usual ${fmtUsual(pair.expected)})`);
+    return bits.length ? `<div class="pairnote">${bits.join(" · ")}</div>` : "";
   };
   $("lines").innerHTML = set.lines.map((l, i) =>
     `<li data-i="${i}" class="${set.entered?.[i] ? "done" : ""}" aria-pressed="${!!set.entered?.[i]}">
@@ -323,6 +327,19 @@ function verdictRow(p, title) {
   return `<div class="verdict"><span class="dot ${cls}"></span><div><b>${title}: ${word}</b><span>p = ${p.toFixed(3)}. Below 0.05 would mean fair balls rarely look this uneven.</span></div></div>`;
 }
 
+const fmtUsual = (e) => (e < 10 ? e.toFixed(1) : String(Math.round(e)));
+
+function topTriplesHTML(g, s) {
+  if (!s.triple_count) return "";
+  const all = [];
+  let k = 0;
+  for (let a = 1; a <= g.pool; a++) for (let b = a + 1; b <= g.pool; b++) for (let c = b + 1; c <= g.pool; c++, k++) all.push([a, b, c, s.triple_count[k]]);
+  const top = all.sort((x, y) => y[3] - x[3]).slice(0, 8);
+  return `<div class="toppairs"><h3>Most often drawn in threes</h3>
+    ${top.map(([a, b, c, n]) => `<div class="tp"><span class="ball">${a}</span><span class="ball">${b}</span><span class="ball">${c}</span><span>${n} times <small>(usual ${fmtUsual(s.triple_expected)})</small></span></div>`).join("")}
+    <p>Out of ${all.length.toLocaleString("en-AU")} possible triples, some always come up several times more than usual by luck alone. ${s.tests.triples_flagged ? `${s.tests.triples_flagged} stand out after allowing for that.` : "None stand out after allowing for that."}</p></div>`;
+}
+
 function topPairsHTML(g, s) {
   if (!s.pair_count) return "";
   const idx = [];
@@ -330,7 +347,7 @@ function topPairsHTML(g, s) {
   for (let a = 1; a <= g.pool; a++) for (let b = a + 1; b <= g.pool; b++, k++) idx.push([a, b, s.pair_count[k], s.pair_z[k]]);
   const top = idx.sort((x, y) => y[3] - x[3]).slice(0, 8);
   return `<div class="toppairs"><h3>Most often drawn together</h3>
-    ${top.map(([a, b, c]) => `<div class="tp"><span class="ball">${a}</span><span class="ball">${b}</span><span>${c} times <small>(usual ${Math.round(s.pair_expected)})</small></span></div>`).join("")}
+    ${top.map(([a, b, c]) => `<div class="tp"><span class="ball">${a}</span><span class="ball">${b}</span><span>${c} times <small>(usual ${fmtUsual(s.pair_expected)})</small></span></div>`).join("")}
     <p>Usual = how often a pair comes up together by chance over these draws. None of these are unusual enough to count as significant once you allow for testing all ${idx.length.toLocaleString("en-AU")} pairs.</p></div>`;
 }
 
@@ -347,12 +364,14 @@ function renderStats() {
   $("stats").innerHTML = `
     ${verdictRow(s.tests.numbers_p, "Single numbers")}
     ${verdictRow(s.tests.pairs_p, "Pairs of numbers")}
+    ${s.tests.triples_p != null ? verdictRow(s.tests.triples_p, "Numbers in threes") : ""}
     ${s.tests.recent ? verdictRow(Math.min(s.tests.recent.numbers_p, s.tests.recent.pairs_p),
       `Recent draws only (${s.tests.recent.draws} since ${fmtDate(s.tests.recent.since, { month: "short", year: "numeric" })})`)
       .replace("Below 0.05 would mean fair balls rarely look this uneven.", "Worn balls would show up here first.") : ""}
-    <div class="verdict"><span class="dot ${btWord[0]}"></span><div><b>${btWord[1]}</b><span>Numbers that were hot in earlier draws beat chance in later draws in ${bt.numbers.splits_passed} of ${bt.numbers.splits} tests. Pairs did in ${bt.pairs.splits_passed} of ${bt.pairs.splits}. A worn ball would pass most of them.</span></div></div>
+    <div class="verdict"><span class="dot ${btWord[0]}"></span><div><b>${btWord[1]}</b><span>Numbers that were hot in earlier draws beat chance in later draws in ${bt.numbers.splits_passed} of ${bt.numbers.splits} tests. Pairs did in ${bt.pairs.splits_passed} of ${bt.pairs.splits}${bt.triples ? `, and triples in ${bt.triples.splits_passed} of ${bt.triples.splits}` : ""}. A worn ball would pass most of them.</span></div></div>
     <div class="verdict"><span class="dot ok" style="visibility:hidden"></span><div><span>Based on ${s.draws.toLocaleString("en-AU")} draws in the current format (${fmtDate(s.first_date, { month: "short", year: "numeric" })} – ${fmtDate(s.last_date, { day: "numeric", month: "short", year: "numeric" })}), ${g.pbPool ? "main numbers only (the Powerball comes from a separate barrel)" : `counting the ${g.suppLabel === "bonus" ? "bonus numbers" : "supplementaries"} too, since they come out of the same machine`}.</span></div></div>
     ${topPairsHTML(g, s)}
+    ${topTriplesHTML(g, s)}
     <div class="hotcold">
       <div><h3>Drawn most</h3><div class="balls">${hot.map(([n]) => `<span class="ball">${n}</span>`).join("")}</div></div>
       <div class="cold"><h3>Drawn least</h3><div class="balls">${cold.map(([n]) => `<span class="ball">${n}</span>`).join("")}</div></div>

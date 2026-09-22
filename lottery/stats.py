@@ -7,6 +7,7 @@ tests are exact for draw-without-replacement and need no approximations.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import combinations
 
 import numpy as np
 import pandas as pd
@@ -112,6 +113,51 @@ def pair_stats(x: np.ndarray, k: int, sims: int = 500, seed: int = 0) -> PairRes
     return PairResult(table, chi, float((null >= chi).mean()), int((qv < 0.05).sum()))
 
 
+def triple_index(pool: int) -> np.ndarray:
+    """Lookup (pool+1)^3 -> position of triple a<b<c in lexicographic order (-1 if invalid)."""
+    idx = np.full((pool + 1, pool + 1, pool + 1), -1, dtype=np.int64)
+    n = 0
+    for a in range(1, pool + 1):
+        for b in range(a + 1, pool + 1):
+            for c in range(b + 1, pool + 1):
+                idx[a, b, c] = n
+                n += 1
+    return idx
+
+
+def _triple_counts(x: np.ndarray, idx: np.ndarray, n_triples: int) -> np.ndarray:
+    d, pool = x.shape
+    k = int(x[0].sum())
+    nums = np.sort(np.nonzero(x)[1].reshape(d, k) + 1, axis=1)   # every row has k numbers
+    a, b, c = (np.array(v) for v in zip(*combinations(range(k), 3)))
+    t = idx[nums[:, a], nums[:, b], nums[:, c]].ravel()
+    return np.bincount(t, minlength=n_triples)
+
+
+@dataclass
+class TripleResult:
+    counts: np.ndarray           # per triple, lexicographic a<b<c
+    expected: float
+    z: np.ndarray
+    chi2_p: float                # Monte Carlo p-value for "all triples equally likely"
+    n_significant: int           # triples with q < 0.05 after FDR correction
+
+
+def triple_stats(x: np.ndarray, k: int, sims: int = 200, seed: int = 0) -> TripleResult:
+    d, pool = x.shape
+    idx = triple_index(pool)
+    n_t = pool * (pool - 1) * (pool - 2) // 6
+    obs = _triple_counts(x, idx, n_t)
+    q_t = k * (k - 1) * (k - 2) / (pool * (pool - 1) * (pool - 2))
+    exp = d * q_t
+    sd = np.sqrt(d * q_t * (1 - q_t))
+    chi = _chi2(obs, exp)
+    rng = np.random.default_rng(seed)
+    null = np.array([_chi2(_triple_counts(simulate_incidence(d, pool, k, rng), idx, n_t), exp) for _ in range(sims)])
+    qv = bh_fdr(stats.binom.sf(obs - 1, d, q_t))   # one-sided: triples drawn together MORE than chance
+    return TripleResult(obs, exp, (obs - exp) / sd, float((null >= chi).mean()), int((qv < 0.05).sum()))
+
+
 def pair_matrix(pairs: pd.DataFrame, pool: int, value: str = "z") -> np.ndarray:
     m = np.full((pool, pool), np.nan)
     m[pairs["a"] - 1, pairs["b"] - 1] = pairs[value]
@@ -141,7 +187,13 @@ def backtest(x_train: np.ndarray, x_test: np.ndarray, k: int, kind: str = "pairs
     If the "hotness" was just noise, both effects vanish.
     """
     pool = x_train.shape[1]
-    if kind == "pairs":
+    if kind == "triples":
+        tidx = triple_index(pool)
+        n_t = pool * (pool - 1) * (pool - 2) // 6
+        count = lambda m: _triple_counts(m, tidx, n_t)  # noqa: E731
+        prob = k * (k - 1) * (k - 2) / (pool * (pool - 1) * (pool - 2))
+        labels = [f"{a}-{b}-{c}" for a, b, c in combinations(range(1, pool + 1), 3)]
+    elif kind == "pairs":
         count = _pair_counts
         prob = k * (k - 1) / (pool * (pool - 1))
         a, b = np.triu_indices(pool, 1)

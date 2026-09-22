@@ -14,7 +14,7 @@ There are three ways to pick:
 
 | Strategy | What it does |
 |---|---|
-| **Frequent pairs** (default) | Builds each game around pairs of numbers that have come out together more often than chance, while keeping games spread out. A slider sets how hard it leans on the pair stats. Each game shows the pair it's built on. |
+| **Pairs & triples** (default) | Builds each game around pairs and groups of three numbers that have come out together more often than chance, while keeping games spread out. A slider sets how hard it leans on these stats. Each game shows its strongest triple and pair. |
 | **Best coverage** | Spreads numbers so your games share as few numbers as possible, and avoids patterns lots of people play, like birthdays and runs. |
 | **Hot numbers** | Leans towards numbers and pairs that have come up more than expected. |
 | **Quick Pick** | Plain random, the same as the Lott app's Quick Pick. |
