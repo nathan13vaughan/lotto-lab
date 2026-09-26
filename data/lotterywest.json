@@ -2,6 +2,22 @@
  "tattslotto": {
   "draws": [
    {
+    "draw_no": 4715,
+    "date": "2026-09-26",
+    "main": [
+     6,
+     25,
+     27,
+     2,
+     31,
+     40
+    ],
+    "supp": [
+     24,
+     35
+    ]
+   },
+   {
     "draw_no": 4713,
     "date": "2026-09-19",
     "main": [
@@ -144,25 +160,39 @@
      28,
      13
     ]
-   },
-   {
-    "draw_no": 4695,
-    "date": "2026-07-18",
-    "main": [
-     7,
-     30,
-     5,
-     24,
-     13,
-     41
-    ],
-    "supp": [
-     33,
-     23
-    ]
    }
   ],
   "dividends": [
+   {
+    "draw_no": 4715,
+    "date": "2026-09-26",
+    "divisions": {
+     "1": {
+      "each": 1247390.16,
+      "winners": 5
+     },
+     "2": {
+      "each": 12177.45,
+      "winners": 49
+     },
+     "3": {
+      "each": 908.7,
+      "winners": 994
+     },
+     "4": {
+      "each": 27.05,
+      "winners": 49588
+     },
+     "5": {
+      "each": 17.8,
+      "winners": 118052
+     },
+     "6": {
+      "each": 9.8,
+      "winners": 721220
+     }
+    }
+   },
    {
     "draw_no": 4713,
     "date": "2026-09-19",
@@ -432,42 +462,12 @@
       "winners": 1361392
      }
     }
-   },
-   {
-    "draw_no": 4695,
-    "date": "2026-07-18",
-    "divisions": {
-     "1": {
-      "each": 6193864.18,
-      "winners": 1
-     },
-     "2": {
-      "each": 8485.55,
-      "winners": 70
-     },
-     "3": {
-      "each": 767.2,
-      "winners": 1172
-     },
-     "4": {
-      "each": 23.45,
-      "winners": 56923
-     },
-     "5": {
-      "each": 14.75,
-      "winners": 141524
-     },
-     "6": {
-      "each": 9.05,
-      "winners": 779611
-     }
-    }
    }
   ],
   "upcoming": {
-   "draw_number": 4715,
-   "draw_close": "2026-09-26T10:00:00Z",
-   "sales_close": "2026-09-26T09:59:30Z",
+   "draw_number": 4717,
+   "draw_close": "2026-10-03T10:00:00Z",
+   "sales_close": "2026-10-03T09:59:30Z",
    "jackpot": 6000000,
    "jackpot_text": "$6 million"
   }
@@ -1078,6 +1078,23 @@
  "setforlife": {
   "draws": [
    {
+    "draw_no": 4069,
+    "date": "2026-09-26",
+    "main": [
+     32,
+     30,
+     10,
+     18,
+     24,
+     16,
+     14
+    ],
+    "supp": [
+     19,
+     12
+    ]
+   },
+   {
     "draw_no": 4068,
     "date": "2026-09-25",
     "main": [
@@ -1229,26 +1246,47 @@
      3,
      25
     ]
-   },
-   {
-    "draw_no": 4059,
-    "date": "2026-09-16",
-    "main": [
-     44,
-     32,
-     30,
-     19,
-     11,
-     31,
-     25
-    ],
-    "supp": [
-     2,
-     15
-    ]
    }
   ],
   "dividends": [
+   {
+    "draw_no": 4069,
+    "date": "2026-09-26",
+    "divisions": {
+     "1": {
+      "each": 0.0,
+      "winners": 0
+     },
+     "2": {
+      "each": 0.0,
+      "winners": 0
+     },
+     "3": {
+      "each": 719.95,
+      "winners": 15
+     },
+     "4": {
+      "each": 107.9,
+      "winners": 91
+     },
+     "5": {
+      "each": 35.1,
+      "winners": 643
+     },
+     "6": {
+      "each": 21.3,
+      "winners": 2440
+     },
+     "7": {
+      "each": 12.05,
+      "winners": 11486
+     },
+     "8": {
+      "each": 10.05,
+      "winners": 25628
+     }
+    }
+   },
    {
     "draw_no": 4068,
     "date": "2026-09-25",
@@ -1590,50 +1628,12 @@
       "winners": 23290
      }
     }
-   },
-   {
-    "draw_no": 4059,
-    "date": "2026-09-16",
-    "divisions": {
-     "1": {
-      "each": 0.0,
-      "winners": 0
-     },
-     "2": {
-      "each": 0.0,
-      "winners": 0
-     },
-     "3": {
-      "each": 1214.85,
-      "winners": 9
-     },
-     "4": {
-      "each": 152.9,
-      "winners": 65
-     },
-     "5": {
-      "each": 43.4,
-      "winners": 527
-     },
-     "6": {
-      "each": 24.85,
-      "winners": 2121
-     },
-     "7": {
-      "each": 13.0,
-      "winners": 10801
-     },
-     "8": {
-      "each": 10.85,
-      "winners": 23958
-     }
-    }
    }
   ],
   "upcoming": {
-   "draw_number": 4069,
-   "draw_close": "2026-09-26T11:00:00Z",
-   "sales_close": "2026-09-26T10:59:30Z",
+   "draw_number": 4070,
+   "draw_close": "2026-09-27T11:00:00Z",
+   "sales_close": "2026-09-27T10:59:30Z",
    "jackpot": 0,
    "jackpot_text": "$20K a mth for 20 yrs + $200K"
   }
