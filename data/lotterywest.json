@@ -1078,6 +1078,23 @@
  "setforlife": {
   "draws": [
    {
+    "draw_no": 4110,
+    "date": "2026-11-06",
+    "main": [
+     31,
+     19,
+     12,
+     38,
+     20,
+     34,
+     37
+    ],
+    "supp": [
+     15,
+     42
+    ]
+   },
+   {
     "draw_no": 4109,
     "date": "2026-11-05",
     "main": [
@@ -1229,26 +1246,47 @@
      20,
      39
     ]
-   },
-   {
-    "draw_no": 4100,
-    "date": "2026-10-27",
-    "main": [
-     44,
-     19,
-     13,
-     42,
-     35,
-     30,
-     25
-    ],
-    "supp": [
-     3,
-     18
-    ]
    }
   ],
   "dividends": [
+   {
+    "draw_no": 4110,
+    "date": "2026-11-06",
+    "divisions": {
+     "1": {
+      "each": 0.0,
+      "winners": 0
+     },
+     "2": {
+      "each": 0.0,
+      "winners": 0
+     },
+     "3": {
+      "each": 1429.4,
+      "winners": 7
+     },
+     "4": {
+      "each": 165.4,
+      "winners": 55
+     },
+     "5": {
+      "each": 44.4,
+      "winners": 471
+     },
+     "6": {
+      "each": 30.25,
+      "winners": 1594
+     },
+     "7": {
+      "each": 14.75,
+      "winners": 8705
+     },
+     "8": {
+      "each": 12.5,
+      "winners": 19090
+     }
+    }
+   },
    {
     "draw_no": 4109,
     "date": "2026-11-05",
@@ -1590,50 +1628,12 @@
       "winners": 20144
      }
     }
-   },
-   {
-    "draw_no": 4100,
-    "date": "2026-10-27",
-    "divisions": {
-     "1": {
-      "each": 0.0,
-      "winners": 0
-     },
-     "2": {
-      "each": 80000.0,
-      "winners": 2
-     },
-     "3": {
-      "each": 943.25,
-      "winners": 11
-     },
-     "4": {
-      "each": 159.85,
-      "winners": 59
-     },
-     "5": {
-      "each": 39.9,
-      "winners": 544
-     },
-     "6": {
-      "each": 25.7,
-      "winners": 1946
-     },
-     "7": {
-      "each": 13.7,
-      "winners": 9707
-     },
-     "8": {
-      "each": 11.5,
-      "winners": 21503
-     }
-    }
    }
   ],
   "upcoming": {
-   "draw_number": 4110,
-   "draw_close": "2026-11-06T11:00:00Z",
-   "sales_close": "2026-11-06T10:59:30Z",
+   "draw_number": 4111,
+   "draw_close": "2026-11-07T11:00:00Z",
+   "sales_close": "2026-11-07T10:59:30Z",
    "jackpot": 0,
    "jackpot_text": "$20K a mth for 20 yrs + $200K"
   }
