@@ -475,6 +475,23 @@
  "powerball": {
   "draws": [
    {
+    "draw_no": 1593,
+    "date": "2026-11-26",
+    "main": [
+     34,
+     18,
+     19,
+     32,
+     24,
+     25,
+     31
+    ],
+    "powerball": [
+     8
+    ],
+    "supp": []
+   },
+   {
     "draw_no": 1592,
     "date": "2026-11-19",
     "main": [
@@ -626,26 +643,51 @@
      12
     ],
     "supp": []
-   },
-   {
-    "draw_no": 1583,
-    "date": "2026-09-17",
-    "main": [
-     22,
-     15,
-     34,
-     17,
-     1,
-     8,
-     19
-    ],
-    "powerball": [
-     2
-    ],
-    "supp": []
    }
   ],
   "dividends": [
+   {
+    "draw_no": 1593,
+    "date": "2026-11-26",
+    "divisions": {
+     "1": {
+      "each": 0.0,
+      "winners": 0
+     },
+     "2": {
+      "each": 360612.25,
+      "winners": 6
+     },
+     "3": {
+      "each": 12683.05,
+      "winners": 211
+     },
+     "4": {
+      "each": 630.75,
+      "winners": 3701
+     },
+     "5": {
+      "each": 223.45,
+      "winners": 7900
+     },
+     "6": {
+      "each": 95.7,
+      "winners": 114808
+     },
+     "7": {
+      "each": 58.05,
+      "winners": 147177
+     },
+     "8": {
+      "each": 24.65,
+      "winners": 738777
+     },
+     "9": {
+      "each": 14.35,
+      "winners": 2184396
+     }
+    }
+   },
    {
     "draw_no": 1592,
     "date": "2026-11-19",
@@ -1023,60 +1065,35 @@
       "winners": 561325
      }
     }
-   },
-   {
-    "draw_no": 1583,
-    "date": "2026-09-17",
-    "divisions": {
-     "1": {
-      "each": 0.0,
-      "winners": 0
-     },
-     "2": {
-      "each": 140235.05,
-      "winners": 3
-     },
-     "3": {
-      "each": 11071.2,
-      "winners": 47
-     },
-     "4": {
-      "each": 610.95,
-      "winners": 743
-     },
-     "5": {
-      "each": 215.3,
-      "winners": 1594
-     },
-     "6": {
-      "each": 92.5,
-      "winners": 23101
-     },
-     "7": {
-      "each": 54.3,
-      "winners": 30592
-     },
-     "8": {
-      "each": 24.5,
-      "winners": 144667
-     },
-     "9": {
-      "each": 14.4,
-      "winners": 422906
-     }
-    }
    }
   ],
   "upcoming": {
-   "draw_number": 1593,
-   "draw_close": "2026-11-26T10:00:00Z",
-   "sales_close": "2026-11-26T09:59:30Z",
-   "jackpot": 110000000,
-   "jackpot_text": "$110 million"
+   "draw_number": 1594,
+   "draw_close": "2026-12-03T10:00:00Z",
+   "sales_close": "2026-12-03T09:59:30Z",
+   "jackpot": 150000000,
+   "jackpot_text": "$150 million"
   }
  },
  "setforlife": {
   "draws": [
+   {
+    "draw_no": 4130,
+    "date": "2026-11-26",
+    "main": [
+     39,
+     24,
+     41,
+     18,
+     13,
+     7,
+     8
+    ],
+    "supp": [
+     19,
+     37
+    ]
+   },
    {
     "draw_no": 4129,
     "date": "2026-11-25",
@@ -1229,26 +1246,47 @@
      40,
      30
     ]
-   },
-   {
-    "draw_no": 4120,
-    "date": "2026-11-16",
-    "main": [
-     37,
-     43,
-     2,
-     41,
-     24,
-     32,
-     36
-    ],
-    "supp": [
-     27,
-     35
-    ]
    }
   ],
   "dividends": [
+   {
+    "draw_no": 4130,
+    "date": "2026-11-26",
+    "divisions": {
+     "1": {
+      "each": 0.0,
+      "winners": 0
+     },
+     "2": {
+      "each": 0.0,
+      "winners": 0
+     },
+     "3": {
+      "each": 2454.45,
+      "winners": 4
+     },
+     "4": {
+      "each": 127.5,
+      "winners": 70
+     },
+     "5": {
+      "each": 42.05,
+      "winners": 488
+     },
+     "6": {
+      "each": 26.25,
+      "winners": 1803
+     },
+     "7": {
+      "each": 12.95,
+      "winners": 9720
+     },
+     "8": {
+      "each": 11.2,
+      "winners": 20860
+     }
+    }
+   },
    {
     "draw_no": 4129,
     "date": "2026-11-25",
@@ -1590,50 +1628,12 @@
       "winners": 21804
      }
     }
-   },
-   {
-    "draw_no": 4120,
-    "date": "2026-11-16",
-    "divisions": {
-     "1": {
-      "each": 0.0,
-      "winners": 0
-     },
-     "2": {
-      "each": 80000.0,
-      "winners": 1
-     },
-     "3": {
-      "each": 1677.55,
-      "winners": 6
-     },
-     "4": {
-      "each": 142.95,
-      "winners": 64
-     },
-     "5": {
-      "each": 42.35,
-      "winners": 497
-     },
-     "6": {
-      "each": 26.75,
-      "winners": 1814
-     },
-     "7": {
-      "each": 13.95,
-      "winners": 9259
-     },
-     "8": {
-      "each": 11.65,
-      "winners": 20536
-     }
-    }
    }
   ],
   "upcoming": {
-   "draw_number": 4130,
-   "draw_close": "2026-11-26T11:00:00Z",
-   "sales_close": "2026-11-26T10:59:30Z",
+   "draw_number": 4131,
+   "draw_close": "2026-11-27T11:00:00Z",
+   "sales_close": "2026-11-27T10:59:30Z",
    "jackpot": 0,
    "jackpot_text": "$20K a mth for 20 yrs + $200K"
   }
